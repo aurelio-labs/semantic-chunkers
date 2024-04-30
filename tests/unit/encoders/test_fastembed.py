@@ -1,4 +1,4 @@
-from semantic_router.encoders import FastEmbedEncoder
+from semantic_chunkers.encoders import FastEmbedEncoder
 
 
 class TestFastEmbedEncoder:

@@ -2,15 +2,15 @@ from unittest.mock import Mock
 
 import pytest
 
-from semantic_router.encoders.cohere import (
+from semantic_chunkers.encoders.cohere import (
     CohereEncoder,
 )
 
 # Adjust this import based on your project structure
-from semantic_router.schema import DocumentSplit
-from semantic_router.splitters.consecutive_sim import ConsecutiveSimSplitter
-from semantic_router.splitters.cumulative_sim import CumulativeSimSplitter
-from semantic_router.text import Conversation, Message
+from semantic_chunkers.schema import DocumentSplit
+from semantic_chunkers.chunkers.consecutive_sim import ConsecutiveSimSplitter
+from semantic_chunkers.chunkers.cumulative_sim import CumulativeSimSplitter
+from semantic_chunkers.text import Conversation, Message
 
 
 @pytest.fixture

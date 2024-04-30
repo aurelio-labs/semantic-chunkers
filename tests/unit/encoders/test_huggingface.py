@@ -3,7 +3,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from semantic_router.encoders.huggingface import HuggingFaceEncoder
+from semantic_chunkers.encoders.huggingface import HuggingFaceEncoder
 
 test_model_name = "hf-internal-testing/tiny-bert"
 encoder = HuggingFaceEncoder(name=test_model_name)

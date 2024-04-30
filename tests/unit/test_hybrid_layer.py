@@ -1,6 +1,6 @@
 import pytest
 
-from semantic_router.encoders import (
+from semantic_chunkers.encoders import (
     AzureOpenAIEncoder,
     BaseEncoder,
     BM25Encoder,
@@ -8,8 +8,8 @@ from semantic_router.encoders import (
     OpenAIEncoder,
     TfidfEncoder,
 )
-from semantic_router.hybrid_layer import HybridRouteLayer
-from semantic_router.route import Route
+from semantic_chunkers.hybrid_layer import HybridRouteLayer
+from semantic_chunkers.route import Route
 
 
 def mock_encoder_call(utterances):

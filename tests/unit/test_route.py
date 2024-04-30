@@ -2,8 +2,8 @@ from unittest.mock import patch  # , AsyncMock
 
 import pytest
 
-from semantic_router.llms import BaseLLM
-from semantic_router.route import Route, is_valid
+from semantic_chunkers.llms import BaseLLM
+from semantic_chunkers.route import Route, is_valid
 
 
 # Is valid test:

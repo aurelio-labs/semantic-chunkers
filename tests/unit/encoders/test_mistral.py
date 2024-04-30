@@ -4,7 +4,7 @@ import pytest
 from mistralai.exceptions import MistralException
 from mistralai.models.embeddings import EmbeddingObject, EmbeddingResponse, UsageInfo
 
-from semantic_router.encoders import MistralEncoder
+from semantic_chunkers.encoders import MistralEncoder
 
 
 @pytest.fixture

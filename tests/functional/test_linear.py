@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from semantic_router.linear import similarity_matrix, top_scores
+from semantic_chunkers.linear import similarity_matrix, top_scores
 
 
 @pytest.fixture

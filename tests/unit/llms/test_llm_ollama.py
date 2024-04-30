@@ -1,7 +1,7 @@
 import pytest
 
-from semantic_router.llms.ollama import OllamaLLM
-from semantic_router.schema import Message
+from semantic_chunkers.llms.ollama import OllamaLLM
+from semantic_chunkers.schema import Message
 
 
 @pytest.fixture

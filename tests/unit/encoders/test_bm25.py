@@ -1,6 +1,6 @@
 import pytest
 
-from semantic_router.encoders import BM25Encoder
+from semantic_chunkers.encoders import BM25Encoder
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@ from google.api_core.exceptions import GoogleAPICallError
 from vertexai.language_models import TextEmbedding
 from vertexai.language_models._language_models import TextEmbeddingStatistics
 
-from semantic_router.encoders import GoogleEncoder
+from semantic_chunkers.encoders import GoogleEncoder
 
 
 @pytest.fixture

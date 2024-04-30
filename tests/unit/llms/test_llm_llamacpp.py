@@ -3,8 +3,8 @@ from unittest.mock import patch
 import pytest
 from llama_cpp import Llama
 
-from semantic_router.llms.llamacpp import LlamaCppLLM
-from semantic_router.schema import Message
+from semantic_chunkers.llms.llamacpp import LlamaCppLLM
+from semantic_chunkers.schema import Message
 
 
 @pytest.fixture

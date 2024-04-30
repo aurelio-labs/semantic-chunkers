@@ -3,7 +3,7 @@ from openai import OpenAIError
 from openai.types import CreateEmbeddingResponse, Embedding
 from openai.types.create_embedding_response import Usage
 
-from semantic_router.encoders import OpenAIEncoder
+from semantic_chunkers.encoders import OpenAIEncoder
 
 
 @pytest.fixture

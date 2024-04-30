@@ -1,6 +1,6 @@
 import pytest
 
-from semantic_router.encoders import BaseEncoder
+from semantic_chunkers.encoders import BaseEncoder
 
 
 class TestBaseEncoder:

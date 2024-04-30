@@ -1,7 +1,7 @@
 import pytest
 from pydantic.v1 import ValidationError
 
-from semantic_router.schema import (
+from semantic_chunkers.schema import (
     Message,
 )
 

@@ -1,6 +1,6 @@
 import pytest
 
-from semantic_router.encoders import CohereEncoder
+from semantic_chunkers.encoders import CohereEncoder
 
 
 @pytest.fixture

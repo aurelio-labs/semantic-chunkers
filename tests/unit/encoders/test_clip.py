@@ -3,7 +3,7 @@ import pytest
 import torch
 from PIL import Image
 
-from semantic_router.encoders import CLIPEncoder
+from semantic_chunkers.encoders import CLIPEncoder
 
 test_model_name = "hf-internal-testing/tiny-random-CLIPModel"
 clip_encoder = CLIPEncoder(name=test_model_name)

@@ -1,6 +1,6 @@
 import pytest
 
-from semantic_router.llms import BaseLLM
+from semantic_chunkers.llms import BaseLLM
 
 
 class TestBaseLLM:

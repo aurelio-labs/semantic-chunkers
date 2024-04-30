@@ -3,7 +3,7 @@ import pytest
 import torch
 from PIL import Image
 
-from semantic_router.encoders import VitEncoder
+from semantic_chunkers.encoders import VitEncoder
 
 test_model_name = "hf-internal-testing/tiny-random-vit"
 vit_encoder = VitEncoder(name=test_model_name)

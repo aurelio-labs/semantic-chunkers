@@ -6,13 +6,13 @@ from unittest.mock import mock_open, patch
 import pytest
 import time
 
-from semantic_router.encoders import BaseEncoder, CohereEncoder, OpenAIEncoder
-from semantic_router.index.local import LocalIndex
-from semantic_router.index.pinecone import PineconeIndex
-from semantic_router.index.qdrant import QdrantIndex
-from semantic_router.layer import LayerConfig, RouteLayer
-from semantic_router.llms.base import BaseLLM
-from semantic_router.route import Route
+from semantic_chunkers.encoders import BaseEncoder, CohereEncoder, OpenAIEncoder
+from semantic_chunkers.index.local import LocalIndex
+from semantic_chunkers.index.pinecone import PineconeIndex
+from semantic_chunkers.index.qdrant import QdrantIndex
+from semantic_chunkers.layer import LayerConfig, RouteLayer
+from semantic_chunkers.llms.base import BaseLLM
+from semantic_chunkers.route import Route
 
 
 def mock_encoder_call(utterances):

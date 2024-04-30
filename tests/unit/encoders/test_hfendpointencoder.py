@@ -1,5 +1,5 @@
 import pytest
-from semantic_router.encoders.huggingface import HFEndpointEncoder
+from semantic_chunkers.encoders.huggingface import HFEndpointEncoder
 
 
 @pytest.fixture
