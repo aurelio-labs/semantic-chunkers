@@ -6,8 +6,8 @@ import pytest
 from semantic_router.encoders.base import BaseEncoder
 from semantic_router.encoders.cohere import CohereEncoder
 from semantic_chunkers import BaseChunker
-from semantic_chunkers import ConsecutiveSimSplitter
-from semantic_chunkers import CumulativeSimSplitter
+from semantic_chunkers import ConsecutiveChunker
+from semantic_chunkers import CumulativeChunker
 
 
 def test_consecutive_sim_splitter():
@@ -21,7 +21,7 @@ def test_consecutive_sim_splitter():
         input_type="",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
-    splitter = ConsecutiveSimSplitter(encoder=cohere_encoder, score_threshold=0.9)
+    splitter = ConsecutiveChunker(encoder=cohere_encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
 
     # Define some documents
@@ -55,7 +55,7 @@ def test_cumulative_sim_splitter():
         cohere_api_key="a",
         input_type="",
     )
-    splitter = CumulativeSimSplitter(encoder=cohere_encoder, score_threshold=0.9)
+    splitter = CumulativeChunker(encoder=cohere_encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
 
     # Define some documents
@@ -83,7 +83,7 @@ def test_consecutive_similarity_splitter_single_doc():
     # Assuming any return value since it should not reach the point of using the encoder
     mock_encoder.return_value = np.array([[0.5, 0]])
 
-    splitter = ConsecutiveSimSplitter(encoder=mock_encoder, score_threshold=0.5)
+    splitter = ConsecutiveChunker(encoder=mock_encoder, score_threshold=0.5)
 
     docs = ["doc1"]
     with pytest.raises(ValueError) as excinfo:
@@ -96,7 +96,7 @@ def test_cumulative_similarity_splitter_single_doc():
     # Assuming any return value since it should not reach the point of using the encoder
     mock_encoder.return_value = np.array([[0.5, 0]])
 
-    splitter = CumulativeSimSplitter(encoder=mock_encoder, score_threshold=0.5)
+    splitter = CumulativeChunker(encoder=mock_encoder, score_threshold=0.5)
 
     docs = ["doc1"]
     with pytest.raises(ValueError) as excinfo:

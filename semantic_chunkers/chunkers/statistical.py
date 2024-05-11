@@ -426,7 +426,9 @@ class StatisticalChunker(BaseChunker):
         sentence after a similarity score below
         a specified threshold.
         """
-        sentences = [sentence for doc in docs for sentence in sentence.regex_splitter(doc)]
+        sentences = [
+            sentence for doc in docs for sentence in sentence.regex_splitter(doc)
+        ]
         encoded_sentences = self._encode_documents(sentences)
         similarity_scores = []
 
