@@ -1,11 +1,11 @@
-from semantic_chunkers.chunkers.base import BaseSplitter
-from semantic_chunkers.chunkers.consecutive_sim import ConsecutiveSimSplitter
-from semantic_chunkers.chunkers.cumulative_sim import CumulativeSimSplitter
-from semantic_chunkers.chunkers.rolling_window import RollingWindowSplitter
+from semantic_chunkers.chunkers.base import BaseChunker
+from semantic_chunkers.chunkers.consecutive import ConsecutiveChunker
+from semantic_chunkers.chunkers.cumulative import CumulativeChunker
+from semantic_chunkers.chunkers.statistical import StatisticalChunker
 
 __all__ = [
-    "BaseSplitter",
-    "ConsecutiveSimSplitter",
-    "CumulativeSimSplitter",
-    "RollingWindowSplitter",
+    "BaseChunker",
+    "ConsecutiveChunker",
+    "CumulativeChunker",
+    "StatisticalChunker",
 ]

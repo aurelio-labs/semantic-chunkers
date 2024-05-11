@@ -1,10 +1,10 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic.v1 import BaseModel
 
 
 class ChunkSet(BaseModel):
-    docs: List[str]
+    docs: List[Any]
     is_triggered: bool = False
     triggered_score: Optional[float] = None
     token_count: Optional[int] = None
