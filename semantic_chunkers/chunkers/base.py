@@ -3,21 +3,21 @@ from typing import List
 from colorama import Fore, Style
 from pydantic.v1 import BaseModel, Extra
 
-from semantic_chunkers.encoders import BaseEncoder
-from semantic_chunkers.schema import DocumentSplit
+from semantic_router.encoders.base import BaseEncoder
+from semantic_chunkers.schema import ChunkSet
 
 
-class BaseSplitter(BaseModel):
+class BaseChunker(BaseModel):
     name: str
     encoder: BaseEncoder
 
     class Config:
         extra = Extra.allow
 
-    def __call__(self, docs: List[str]) -> List[DocumentSplit]:
+    def __call__(self, docs: List[str]) -> List[ChunkSet]:
         raise NotImplementedError("Subclasses must implement this method")
 
-    def print(self, document_splits: List[DocumentSplit]) -> None:
+    def print(self, document_splits: List[ChunkSet]) -> None:
         colors = [Fore.RED, Fore.GREEN, Fore.BLUE, Fore.MAGENTA]
         for i, split in enumerate(document_splits):
             color = colors[i % len(colors)]

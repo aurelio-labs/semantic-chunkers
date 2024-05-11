@@ -2,12 +2,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from semantic_chunkers.encoders.cohere import (
+from semantic_router.encoders.cohere import (
     CohereEncoder,
 )
 
 # Adjust this import based on your project structure
-from semantic_chunkers.schema import DocumentSplit
+from semantic_chunkers.schema import ChunkSet
 from semantic_chunkers.chunkers.consecutive_sim import ConsecutiveSimSplitter
 from semantic_chunkers.chunkers.cumulative_sim import CumulativeSimSplitter
 from semantic_chunkers.text import Conversation, Message
@@ -105,7 +105,7 @@ def test_get_last_message_and_topic_id_with_topics(conversation_instance):
 def test_determine_topic_start_index_no_existing_topics(conversation_instance):
     # Scenario where there are no existing topics
     new_topics = [
-        DocumentSplit(docs=["User: Hello!"], is_triggered=True, triggered_score=0.4)
+        ChunkSet(docs=["User: Hello!"], is_triggered=True, triggered_score=0.4)
     ]
     start_index = conversation_instance.determine_topic_start_index(
         new_topics, None, None
@@ -121,7 +121,7 @@ def test_determine_topic_start_index_with_existing_topics_not_including_last_mes
     # Scenario where existing topics do not include the last message
     conversation_instance.topics.append((0, "First message"))
     new_topics = [
-        DocumentSplit(docs=["User: Hello!"], is_triggered=True, triggered_score=0.4)
+        ChunkSet(docs=["User: Hello!"], is_triggered=True, triggered_score=0.4)
     ]
     start_index = conversation_instance.determine_topic_start_index(
         new_topics, 0, "Non-existent last message"
@@ -137,7 +137,7 @@ def test_determine_topic_start_index_with_existing_topics_including_last_message
     # Scenario where the first new topic includes the last message
     conversation_instance.topics.append((0, "First message"))
     new_topics = [
-        DocumentSplit(
+        ChunkSet(
             docs=["First message", "Another message"],
             is_triggered=True,
             triggered_score=0.4,
@@ -158,7 +158,7 @@ def test_determine_topic_start_index_increment_from_last_topic_id(
     conversation_instance.topics.append((1, "First message"))
     conversation_instance.topics.append((2, "Second message"))
     new_topics = [
-        DocumentSplit(docs=["User: Hello!"], is_triggered=True, triggered_score=0.4)
+        ChunkSet(docs=["User: Hello!"], is_triggered=True, triggered_score=0.4)
     ]
     start_index = conversation_instance.determine_topic_start_index(
         new_topics, 2, "Non-existent last message"

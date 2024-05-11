@@ -3,50 +3,50 @@ from typing import List
 
 import numpy as np
 
-from semantic_chunkers.encoders.base import BaseEncoder
-from semantic_chunkers.schema import DocumentSplit
-from semantic_chunkers.chunkers.base import BaseSplitter
+from semantic_router.encoders.base import BaseEncoder
+from semantic_chunkers.schema import ChunkSet
+from semantic_chunkers.chunkers.base import BaseChunker
 from semantic_chunkers.chunkers.utils import split_to_sentences, tiktoken_length
 from semantic_chunkers.utils.logger import logger
 
 
 @dataclass
-class SplitStatistics:
+class ChunkStatistics:
     total_documents: int
-    total_splits: int
-    splits_by_threshold: int
-    splits_by_max_chunk_size: int
-    splits_by_last_split: int
+    total_chunks: int
+    chunks_by_threshold: int
+    chunks_by_max_chunk_size: int
+    chunks_by_last_split: int
     min_token_size: int
     max_token_size: int
-    splits_by_similarity_ratio: float
+    chunks_by_similarity_ratio: float
 
     def __str__(self):
         return (
-            f"Splitting Statistics:\n"
+            f"Chunking Statistics:\n"
             f"  - Total Documents: {self.total_documents}\n"
-            f"  - Total Splits: {self.total_splits}\n"
-            f"  - Splits by Threshold: {self.splits_by_threshold}\n"
-            f"  - Splits by Max Chunk Size: {self.splits_by_max_chunk_size}\n"
-            f"  - Last Split: {self.splits_by_last_split}\n"
-            f"  - Minimum Token Size of Split: {self.min_token_size}\n"
-            f"  - Maximum Token Size of Split: {self.max_token_size}\n"
-            f"  - Similarity Split Ratio: {self.splits_by_similarity_ratio:.2f}"
+            f"  - Total Chunks: {self.total_chunks}\n"
+            f"  - Chunks by Threshold: {self.chunks_by_threshold}\n"
+            f"  - Chunks by Max Chunk Size: {self.chunks_by_max_chunk_size}\n"
+            f"  - Last Chunk: {self.chunks_by_last_split}\n"
+            f"  - Minimum Token Size of Chunk: {self.min_token_size}\n"
+            f"  - Maximum Token Size of Chunk: {self.max_token_size}\n"
+            f"  - Similarity Chunk Ratio: {self.chunks_by_similarity_ratio:.2f}"
         )
 
 
-class RollingWindowSplitter(BaseSplitter):
+class StatisticalChunker(BaseChunker):
     def __init__(
         self,
         encoder: BaseEncoder,
-        name="rolling_window_splitter",
+        name="statistical_chunker",
         threshold_adjustment=0.01,
         dynamic_threshold: bool = True,
         window_size=5,
         min_split_tokens=100,
         max_split_tokens=300,
         split_tokens_tolerance=10,
-        plot_splits=False,
+        plot_chunks=False,
         enable_statistics=False,
     ):
         super().__init__(name=name, encoder=encoder)
@@ -55,20 +55,20 @@ class RollingWindowSplitter(BaseSplitter):
         self.threshold_adjustment = threshold_adjustment
         self.dynamic_threshold = dynamic_threshold
         self.window_size = window_size
-        self.plot_splits = plot_splits
+        self.plot_chunks = plot_chunks
         self.min_split_tokens = min_split_tokens
         self.max_split_tokens = max_split_tokens
         self.split_tokens_tolerance = split_tokens_tolerance
         self.enable_statistics = enable_statistics
-        self.statistics: SplitStatistics
+        self.statistics: ChunkStatistics
 
-    def __call__(self, docs: List[str]) -> List[DocumentSplit]:
-        """Split documents into smaller chunks based on semantic similarity.
+    def __call__(self, docs: List[str]) -> List[ChunkSet]:
+        """Chunk documents into smaller chunks based on semantic similarity.
 
         :param docs: list of text documents to be split, if only wanted to
             split a single document, pass it as a list with a single element.
 
-        :return: list of DocumentSplit objects containing the split documents.
+        :return: list of DocumentChunk objects containing the split documents.
         """
         if not docs:
             raise ValueError("At least one document is required for splitting.")
@@ -79,7 +79,7 @@ class RollingWindowSplitter(BaseSplitter):
                 logger.info(
                     f"Single document exceeds the maximum token limit "
                     f"of {self.max_split_tokens}. "
-                    "Splitting to sentences before semantically splitting."
+                    "Splitting to sentences before semantically merging."
                 )
             docs = split_to_sentences(docs[0])
         encoded_docs = self._encode_documents(docs)
@@ -89,15 +89,15 @@ class RollingWindowSplitter(BaseSplitter):
         else:
             self.calculated_threshold = self.encoder.score_threshold
         split_indices = self._find_split_indices(similarities=similarities)
-        splits = self._split_documents(docs, split_indices, similarities)
+        chunks = self._split_documents(docs, split_indices, similarities)
 
-        if self.plot_splits:
-            self.plot_similarity_scores(similarities, split_indices, splits)
+        if self.plot_chunks:
+            self.plot_similarity_scores(similarities, split_indices, chunks)
 
         if self.enable_statistics:
             print(self.statistics)
 
-        return splits
+        return chunks
 
     def _encode_documents(self, docs: List[str]) -> np.ndarray:
         """
@@ -143,7 +143,7 @@ class RollingWindowSplitter(BaseSplitter):
                     f"Adding to split_indices due to score < threshold: "
                     f"{score} < {self.calculated_threshold}"
                 )
-                # Split after the document at idx
+                # Chunk after the document at idx
                 split_indices.append(idx + 1)
         return split_indices
 
@@ -176,7 +176,7 @@ class RollingWindowSplitter(BaseSplitter):
                 )
             ]
 
-            # Calculate the median token count for the splits
+            # Calculate the median token count for the chunks
             median_tokens = np.median(split_token_counts)
             logger.debug(
                 f"Iteration {iteration}: Median tokens per split: {median_tokens}"
@@ -206,23 +206,23 @@ class RollingWindowSplitter(BaseSplitter):
 
     def _split_documents(
         self, docs: List[str], split_indices: List[int], similarities: List[float]
-    ) -> List[DocumentSplit]:
+    ) -> List[ChunkSet]:
         """
         This method iterates through each document, appending it to the current split
         until it either reaches a split point (determined by split_indices) or exceeds
         the maximum token limit for a split (self.max_split_tokens).
         When a document causes the current token count to exceed this limit,
         or when a split point is reached and the minimum token requirement is met,
-        the current split is finalized and added to the List of splits.
+        the current split is finalized and added to the List of chunks.
         """
         token_counts = [tiktoken_length(doc) for doc in docs]
-        splits, current_split = [], []
+        chunks, current_split = [], []
         current_tokens_count = 0
 
         # Statistics
-        splits_by_threshold = 0
-        splits_by_max_chunk_size = 0
-        splits_by_last_split = 0
+        chunks_by_threshold = 0
+        chunks_by_max_chunk_size = 0
+        chunks_by_last_split = 0
 
         for doc_idx, doc in enumerate(docs):
             doc_token_count = token_counts[doc_idx]
@@ -243,8 +243,8 @@ class RollingWindowSplitter(BaseSplitter):
                     triggered_score = (
                         similarities[doc_idx] if doc_idx < len(similarities) else None
                     )
-                    splits.append(
-                        DocumentSplit(
+                    chunks.append(
+                        ChunkSet(
                             docs=current_split.copy(),
                             is_triggered=True,
                             triggered_score=triggered_score,
@@ -252,27 +252,27 @@ class RollingWindowSplitter(BaseSplitter):
                         )
                     )
                     logger.debug(
-                        f"Split finalized with {current_tokens_count} tokens due to "
+                        f"Chunk finalized with {current_tokens_count} tokens due to "
                         f"threshold {self.calculated_threshold}."
                     )
                     current_split, current_tokens_count = [], 0
-                    splits_by_threshold += 1
+                    chunks_by_threshold += 1
                     continue  # Move to the next document after splitting
 
             # Check if adding the current document exceeds the max token limit
             if current_tokens_count + doc_token_count > self.max_split_tokens:
                 if current_tokens_count >= self.min_split_tokens:
-                    splits.append(
-                        DocumentSplit(
+                    chunks.append(
+                        ChunkSet(
                             docs=current_split.copy(),
                             is_triggered=False,
                             triggered_score=None,
                             token_count=current_tokens_count,
                         )
                     )
-                    splits_by_max_chunk_size += 1
+                    chunks_by_max_chunk_size += 1
                     logger.debug(
-                        f"Split finalized with {current_tokens_count} tokens due to "
+                        f"Chink finalized with {current_tokens_count} tokens due to "
                         f"exceeding token limit of {self.max_split_tokens}."
                     )
                     current_split, current_tokens_count = [], 0
@@ -282,15 +282,15 @@ class RollingWindowSplitter(BaseSplitter):
 
         # Handle the last split
         if current_split:
-            splits.append(
-                DocumentSplit(
+            chunks.append(
+                ChunkSet(
                     docs=current_split.copy(),
                     is_triggered=False,
                     triggered_score=None,
                     token_count=current_tokens_count,
                 )
             )
-            splits_by_last_split += 1
+            chunks_by_last_split += 1
             logger.debug(
                 f"Final split added with {current_tokens_count} "
                 "tokens due to remaining documents."
@@ -299,7 +299,7 @@ class RollingWindowSplitter(BaseSplitter):
         # Validation to ensure no tokens are lost during the split
         original_token_count = sum(token_counts)
         split_token_count = sum(
-            [tiktoken_length(doc) for split in splits for doc in split.docs]
+            [tiktoken_length(doc) for split in chunks for doc in split.docs]
         )
         if original_token_count != split_token_count:
             logger.error(
@@ -310,37 +310,37 @@ class RollingWindowSplitter(BaseSplitter):
             )
 
         # Statistics
-        total_splits = len(splits)
-        splits_by_similarity_ratio = (
-            splits_by_threshold / total_splits if total_splits else 0
+        total_chunks = len(chunks)
+        chunks_by_similarity_ratio = (
+            chunks_by_threshold / total_chunks if total_chunks else 0
         )
         min_token_size = max_token_size = 0
-        if splits:
+        if chunks:
             token_counts = [
-                split.token_count for split in splits if split.token_count is not None
+                split.token_count for split in chunks if split.token_count is not None
             ]
             min_token_size, max_token_size = min(token_counts, default=0), max(
                 token_counts, default=0
             )
 
-        self.statistics = SplitStatistics(
+        self.statistics = ChunkStatistics(
             total_documents=len(docs),
-            total_splits=total_splits,
-            splits_by_threshold=splits_by_threshold,
-            splits_by_max_chunk_size=splits_by_max_chunk_size,
-            splits_by_last_split=splits_by_last_split,
+            total_chunks=total_chunks,
+            chunks_by_threshold=chunks_by_threshold,
+            chunks_by_max_chunk_size=chunks_by_max_chunk_size,
+            chunks_by_last_split=chunks_by_last_split,
             min_token_size=min_token_size,
             max_token_size=max_token_size,
-            splits_by_similarity_ratio=splits_by_similarity_ratio,
+            chunks_by_similarity_ratio=chunks_by_similarity_ratio,
         )
 
-        return splits
+        return chunks
 
     def plot_similarity_scores(
         self,
         similarities: List[float],
         split_indices: List[int],
-        splits: list[DocumentSplit],
+        chunks: list[ChunkSet],
     ):
         try:
             from matplotlib import pyplot as plt
@@ -360,7 +360,7 @@ class RollingWindowSplitter(BaseSplitter):
                 x=split_index - 1,
                 color="r",
                 linestyle="--",
-                label="Split" if split_index == split_indices[0] else "",
+                label="Chunk" if split_index == split_indices[0] else "",
             )
         axs[0].axhline(
             y=self.calculated_threshold,
@@ -389,11 +389,11 @@ class RollingWindowSplitter(BaseSplitter):
         )
         axs[0].legend()
 
-        # Plot 2: Split Token Size Distribution
-        token_counts = [split.token_count for split in splits]
+        # Plot 2: Chunk Token Size Distribution
+        token_counts = [split.token_count for split in chunks]
         axs[1].bar(range(len(token_counts)), token_counts, color="lightblue")
-        axs[1].set_title("Split Token Sizes")
-        axs[1].set_xlabel("Split Index")
+        axs[1].set_title("Chunk Token Sizes")
+        axs[1].set_xlabel("Chunk Index")
         axs[1].set_ylabel("Token Count")
         axs[1].set_xticks(range(len(token_counts)))
         axs[1].set_xticklabels([str(i) for i in range(len(token_counts))])

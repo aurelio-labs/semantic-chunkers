@@ -2,33 +2,33 @@ from typing import Any, List
 
 import numpy as np
 
-from semantic_chunkers.encoders import BaseEncoder
-from semantic_chunkers.schema import DocumentSplit
-from semantic_chunkers.chunkers.base import BaseSplitter
+from semantic_router.encoders.base import BaseEncoder
+from semantic_chunkers.schema import ChunkSet
+from semantic_chunkers.chunkers.base import BaseChunker
 
 
-class ConsecutiveSimSplitter(BaseSplitter):
+class ConsecutiveChunker(BaseChunker):
     """
-    Called "consecutive sim splitter" because we check the similarities of consecutive document embeddings (compare ith to i+1th document embedding).
+    Called "consecutive sim chunker" because we check the similarities of consecutive document embeddings (compare ith to i+1th document embedding).
     """
 
     def __init__(
         self,
         encoder: BaseEncoder,
-        name: str = "consecutive_similarity_splitter",
+        name: str = "consecutive_chunker",
         score_threshold: float = 0.45,
     ):
         super().__init__(name=name, encoder=encoder)
         encoder.score_threshold = score_threshold
         self.score_threshold = score_threshold
 
-    def __call__(self, docs: List[Any]) -> List[DocumentSplit]:
+    def __call__(self, docs: List[Any]) -> List[ChunkSet]:
         """Split documents into smaller chunks based on semantic similarity.
 
         :param docs: list of text documents to be split, if only wanted to
             split a single document, pass it as a list with a single element.
 
-        :return: list of DocumentSplit objects containing the split documents.
+        :return: list of ChunkSet objects containing the chunks.
         """
         # Check if there's only a single document
         if len(docs) == 1:
@@ -48,7 +48,7 @@ class ConsecutiveSimSplitter(BaseSplitter):
             curr_sim_score = sim_matrix[idx - 1][idx]
             if idx < len(sim_matrix) and curr_sim_score < self.score_threshold:
                 splits.append(
-                    DocumentSplit(
+                    ChunkSet(
                         docs=list(docs[curr_split_start_idx:idx]),
                         is_triggered=True,
                         triggered_score=curr_sim_score,
@@ -56,5 +56,5 @@ class ConsecutiveSimSplitter(BaseSplitter):
                 )
                 curr_split_start_idx = idx
                 curr_split_num += 1
-        splits.append(DocumentSplit(docs=list(docs[curr_split_start_idx:])))
+        splits.append(ChunkSet(docs=list(docs[curr_split_start_idx:])))
         return splits
