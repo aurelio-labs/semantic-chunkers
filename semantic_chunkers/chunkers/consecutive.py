@@ -55,7 +55,7 @@ class ConsecutiveChunker(BaseChunker):
         self.chunks = chunks
         return chunks
 
-    def __call__(self, docs: List[List[Any]]) -> List[List[Chunk]]:
+    def __call__(self, docs: List[Any]) -> List[List[Chunk]]:
         """Split documents into smaller chunks based on semantic similarity.
 
         :param docs: list of text documents to be split, if only wanted to

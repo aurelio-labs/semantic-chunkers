@@ -21,10 +21,10 @@ class BaseChunker(BaseModel):
     def _split(self, doc: str) -> List[str]:
         return regex_splitter(doc)
 
-    def _chunk(self, splits: List[Any]) -> List[List[Chunk]]:
+    def _chunk(self, splits: List[Any]) -> List[Chunk]:
         raise NotImplementedError("Subclasses must implement this method")
 
-    def print(self, document_splits: List[List[Chunk]]) -> None:
+    def print(self, document_splits: List[Chunk]) -> None:
         colors = [Fore.RED, Fore.GREEN, Fore.BLUE, Fore.MAGENTA]
         for i, split in enumerate(document_splits):
             color = colors[i % len(colors)]

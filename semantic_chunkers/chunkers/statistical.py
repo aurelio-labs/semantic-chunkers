@@ -62,7 +62,7 @@ class StatisticalChunker(BaseChunker):
         self.enable_statistics = enable_statistics
         self.statistics: ChunkStatistics
 
-    def __call__(self, docs: List[List[str]]) -> List[Chunk]:
+    def __call__(self, docs: List[str]) -> List[List[Chunk]]:
         """Chunk documents into smaller chunks based on semantic similarity.
 
         :param docs: list of text documents to be split, if only wanted to
