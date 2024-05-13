@@ -1,10 +1,11 @@
-from typing import List
+from typing import Any, List
 
 from colorama import Fore, Style
 from pydantic.v1 import BaseModel, Extra
 
 from semantic_router.encoders.base import BaseEncoder
-from semantic_chunkers.schema import ChunkSet
+from semantic_chunkers.schema import Chunk
+from semantic_chunkers.splitters.sentence import regex_splitter
 
 
 class BaseChunker(BaseModel):
@@ -14,10 +15,16 @@ class BaseChunker(BaseModel):
     class Config:
         extra = Extra.allow
 
-    def __call__(self, docs: List[str]) -> List[ChunkSet]:
+    def __call__(self, docs: List[str]) -> List[List[Chunk]]:
         raise NotImplementedError("Subclasses must implement this method")
 
-    def print(self, document_splits: List[ChunkSet]) -> None:
+    def _split(self, doc: str) -> List[str]:
+        return regex_splitter(doc)
+
+    def _chunk(self, splits: List[Any]) -> List[Chunk]:
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def print(self, document_splits: List[Chunk]) -> None:
         colors = [Fore.RED, Fore.GREEN, Fore.BLUE, Fore.MAGENTA]
         for i, split in enumerate(document_splits):
             color = colors[i % len(colors)]

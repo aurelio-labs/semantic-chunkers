@@ -1,9 +1,10 @@
-from typing import List
+from typing import Any, List
+from tqdm.auto import tqdm
 
 import numpy as np
 
 from semantic_router.encoders import BaseEncoder
-from semantic_chunkers.schema import ChunkSet
+from semantic_chunkers.schema import Chunk
 from semantic_chunkers.chunkers.base import BaseChunker
 
 
@@ -23,35 +24,28 @@ class CumulativeChunker(BaseChunker):
         encoder.score_threshold = score_threshold
         self.score_threshold = score_threshold
 
-    def __call__(self, docs: List[str]) -> List[ChunkSet]:
-        """Split documents into smaller chunks based on semantic similarity.
+    def _chunk(self, splits: List[Any], batch_size: int = 64) -> List[Chunk]:
+        """Merge splits into chunks using semantic similarity.
 
-        :param docs: list of text documents to be chunk, if only wanted to
-            chunk a single document, pass it as a list with a single element.
+        :param splits: splits to be merged into chunks.
 
-        :return: list of ChunkSet objects containing the chunks.
+        :return: list of chunks.
         """
-        total_docs = len(docs)
-        # Check if there's only a single document
-        if total_docs == 1:
-            raise ValueError(
-                "There is only one document provided; at least two are required "
-                "to determine topics based on similarity."
-            )
         chunks = []
         curr_chunk_start_idx = 0
+        num_splits = len(splits)
 
-        for idx in range(0, total_docs):
-            if idx + 1 < total_docs:  # Ensure there is a next document to compare with.
+        for idx in tqdm(range(num_splits)):
+            if idx + 1 < num_splits:  # Ensure there is a next document to compare with.
                 if idx == 0:
                     # On the first iteration, compare the
                     # first document directly to the second.
-                    curr_chunk_docs = docs[idx]
+                    curr_chunk_docs = splits[idx]
                 else:
                     # For subsequent iterations, compare cumulative
                     # documents up to the current one with the next.
-                    curr_chunk_docs = "\n".join(docs[curr_chunk_start_idx : idx + 1])
-                next_doc = docs[idx + 1]
+                    curr_chunk_docs = "\n".join(splits[curr_chunk_start_idx : idx + 1])
+                next_doc = splits[idx + 1]
 
                 # Embedding and similarity calculation remains the same.
                 curr_chunk_docs_embed = self.encoder([curr_chunk_docs])[0]
@@ -63,8 +57,8 @@ class CumulativeChunker(BaseChunker):
                 # Decision to chunk based on similarity score.
                 if curr_sim_score < self.score_threshold:
                     chunks.append(
-                        ChunkSet(
-                            docs=list(docs[curr_chunk_start_idx : idx + 1]),
+                        Chunk(
+                            splits=list(splits[curr_chunk_start_idx : idx + 1]),
                             is_triggered=True,
                             triggered_score=curr_sim_score,
                         )
@@ -74,7 +68,26 @@ class CumulativeChunker(BaseChunker):
                     )  # Update the start index for the next segment.
 
         # Add the last segment after the loop.
-        if curr_chunk_start_idx < total_docs:
-            chunks.append(ChunkSet(docs=list(docs[curr_chunk_start_idx:])))
+        if curr_chunk_start_idx < num_splits:
+            chunks.append(Chunk(splits=list(splits[curr_chunk_start_idx:])))
 
         return chunks
+
+    def __call__(self, docs: List[str]) -> List[List[Chunk]]:
+        """Split documents into smaller chunks based on semantic similarity.
+
+        :param docs: list of text documents to be chunk, if only wanted to
+            chunk a single document, pass it as a list with a single element.
+
+        :return: list of list objects containing the chunks.
+        """
+        all_chunks = []
+        for doc in docs:
+            # split the document into sentences (if needed)
+            if isinstance(doc, str):
+                splits = self._split(doc)
+            else:
+                splits = doc
+            doc_chunks = self._chunk(splits)
+            all_chunks.append(doc_chunks)
+        return all_chunks

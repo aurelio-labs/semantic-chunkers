@@ -4,9 +4,8 @@ from typing import List
 import numpy as np
 
 from semantic_router.encoders.base import BaseEncoder
-from semantic_chunkers.schema import ChunkSet
+from semantic_chunkers.schema import Chunk
 from semantic_chunkers.chunkers.base import BaseChunker
-from semantic_chunkers.splitters import sentence
 from semantic_chunkers.utils.text import tiktoken_length
 from semantic_chunkers.utils.logger import logger
 
@@ -63,7 +62,7 @@ class StatisticalChunker(BaseChunker):
         self.enable_statistics = enable_statistics
         self.statistics: ChunkStatistics
 
-    def __call__(self, docs: List[str]) -> List[ChunkSet]:
+    def __call__(self, docs: List[str]) -> List[List[Chunk]]:
         """Chunk documents into smaller chunks based on semantic similarity.
 
         :param docs: list of text documents to be split, if only wanted to
@@ -74,31 +73,34 @@ class StatisticalChunker(BaseChunker):
         if not docs:
             raise ValueError("At least one document is required for splitting.")
 
-        if len(docs) == 1:
-            token_count = tiktoken_length(docs[0])
+        all_chunks = []
+
+        for doc in docs:
+            token_count = tiktoken_length(doc)
             if token_count > self.max_split_tokens:
                 logger.info(
                     f"Single document exceeds the maximum token limit "
                     f"of {self.max_split_tokens}. "
                     "Splitting to sentences before semantically merging."
                 )
-            docs = sentence.regex_splitter(docs[0])
-        encoded_docs = self._encode_documents(docs)
-        similarities = self._calculate_similarity_scores(encoded_docs)
-        if self.dynamic_threshold:
-            self._find_optimal_threshold(docs, similarities)
-        else:
-            self.calculated_threshold = self.encoder.score_threshold
-        split_indices = self._find_split_indices(similarities=similarities)
-        chunks = self._split_documents(docs, split_indices, similarities)
+            splits = self._split(doc)
+            encoded_splits = self._encode_documents(splits)
+            similarities = self._calculate_similarity_scores(encoded_splits)
+            if self.dynamic_threshold:
+                self._find_optimal_threshold(splits, similarities)
+            else:
+                self.calculated_threshold = self.encoder.score_threshold
+            split_indices = self._find_split_indices(similarities=similarities)
+            doc_chunks = self._split_documents(splits, split_indices, similarities)
 
-        if self.plot_chunks:
-            self.plot_similarity_scores(similarities, split_indices, chunks)
+            if self.plot_chunks:
+                self.plot_similarity_scores(similarities, split_indices, doc_chunks)
 
-        if self.enable_statistics:
-            print(self.statistics)
+            if self.enable_statistics:
+                print(self.statistics)
+            all_chunks.append(doc_chunks)
 
-        return chunks
+        return all_chunks
 
     def _encode_documents(self, docs: List[str]) -> np.ndarray:
         """
@@ -207,7 +209,7 @@ class StatisticalChunker(BaseChunker):
 
     def _split_documents(
         self, docs: List[str], split_indices: List[int], similarities: List[float]
-    ) -> List[ChunkSet]:
+    ) -> List[Chunk]:
         """
         This method iterates through each document, appending it to the current split
         until it either reaches a split point (determined by split_indices) or exceeds
@@ -245,8 +247,8 @@ class StatisticalChunker(BaseChunker):
                         similarities[doc_idx] if doc_idx < len(similarities) else None
                     )
                     chunks.append(
-                        ChunkSet(
-                            docs=current_split.copy(),
+                        Chunk(
+                            splits=current_split.copy(),
                             is_triggered=True,
                             triggered_score=triggered_score,
                             token_count=current_tokens_count,
@@ -264,8 +266,8 @@ class StatisticalChunker(BaseChunker):
             if current_tokens_count + doc_token_count > self.max_split_tokens:
                 if current_tokens_count >= self.min_split_tokens:
                     chunks.append(
-                        ChunkSet(
-                            docs=current_split.copy(),
+                        Chunk(
+                            splits=current_split.copy(),
                             is_triggered=False,
                             triggered_score=None,
                             token_count=current_tokens_count,
@@ -284,8 +286,8 @@ class StatisticalChunker(BaseChunker):
         # Handle the last split
         if current_split:
             chunks.append(
-                ChunkSet(
-                    docs=current_split.copy(),
+                Chunk(
+                    splits=current_split.copy(),
                     is_triggered=False,
                     triggered_score=None,
                     token_count=current_tokens_count,
@@ -300,7 +302,7 @@ class StatisticalChunker(BaseChunker):
         # Validation to ensure no tokens are lost during the split
         original_token_count = sum(token_counts)
         split_token_count = sum(
-            [tiktoken_length(doc) for split in chunks for doc in split.docs]
+            [tiktoken_length(doc) for split in chunks for doc in split.splits]
         )
         if original_token_count != split_token_count:
             logger.error(
@@ -341,7 +343,7 @@ class StatisticalChunker(BaseChunker):
         self,
         similarities: List[float],
         split_indices: List[int],
-        chunks: list[ChunkSet],
+        chunks: list[Chunk],
     ):
         try:
             from matplotlib import pyplot as plt
@@ -426,9 +428,7 @@ class StatisticalChunker(BaseChunker):
         sentence after a similarity score below
         a specified threshold.
         """
-        sentences = [
-            sentence for doc in docs for sentence in sentence.regex_splitter(doc)
-        ]
+        sentences = [sentence for doc in docs for sentence in self._split(doc)]
         encoded_sentences = self._encode_documents(sentences)
         similarity_scores = []
 

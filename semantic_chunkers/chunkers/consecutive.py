@@ -1,9 +1,10 @@
 from typing import Any, List
+from tqdm.auto import tqdm
 
 import numpy as np
 
 from semantic_router.encoders.base import BaseEncoder
-from semantic_chunkers.schema import ChunkSet
+from semantic_chunkers.schema import Chunk
 from semantic_chunkers.chunkers.base import BaseChunker
 
 
@@ -22,39 +23,53 @@ class ConsecutiveChunker(BaseChunker):
         encoder.score_threshold = score_threshold
         self.score_threshold = score_threshold
 
-    def __call__(self, docs: List[Any]) -> List[ChunkSet]:
-        """Split documents into smaller chunks based on semantic similarity.
+    def _chunk(self, splits: List[Any], batch_size: int = 64) -> List[Chunk]:
+        """Merge splits into chunks using semantic similarity.
 
-        :param docs: list of text documents to be split, if only wanted to
-            split a single document, pass it as a list with a single element.
+        :param splits: splits to be merged into chunks.
 
-        :return: list of ChunkSet objects containing the chunks.
+        :return: list of chunks.
         """
-        # Check if there's only a single document
-        if len(docs) == 1:
-            raise ValueError(
-                "There is only one document provided; at least two are required to determine topics based on similarity."
-            )
-
-        doc_embeds = self.encoder(docs)
-        norm_embeds = doc_embeds / np.linalg.norm(doc_embeds, axis=1, keepdims=True)
+        split_embeds = []
+        num_splits = len(splits)
+        for i in tqdm(range(0, num_splits, batch_size)):
+            split_embeds.extend(self.encoder(splits[i : i + batch_size]))
+        norm_embeds = split_embeds / np.linalg.norm(split_embeds, axis=1, keepdims=True)
         sim_matrix = np.matmul(norm_embeds, norm_embeds.T)
-        total_docs = len(docs)
-        splits = []
+        chunks = []
         curr_split_start_idx = 0
-        curr_split_num = 1
 
-        for idx in range(1, total_docs):
+        for idx in tqdm(range(1, norm_embeds.shape[0])):
             curr_sim_score = sim_matrix[idx - 1][idx]
             if idx < len(sim_matrix) and curr_sim_score < self.score_threshold:
-                splits.append(
-                    ChunkSet(
-                        docs=list(docs[curr_split_start_idx:idx]),
+                chunks.append(
+                    Chunk(
+                        splits=splits[curr_split_start_idx:idx],
                         is_triggered=True,
                         triggered_score=curr_sim_score,
                     )
                 )
                 curr_split_start_idx = idx
-                curr_split_num += 1
-        splits.append(ChunkSet(docs=list(docs[curr_split_start_idx:])))
-        return splits
+        # append final chunk
+        chunks.append(Chunk(splits=splits[curr_split_start_idx:]))
+        self.chunks = chunks
+        return chunks
+
+    def __call__(self, docs: List[Any]) -> List[List[Chunk]]:
+        """Split documents into smaller chunks based on semantic similarity.
+
+        :param docs: list of text documents to be split, if only wanted to
+            split a single document, pass it as a list with a single element.
+
+        :return: list of list objects containing the chunks.
+        """
+        all_chunks = []
+        for doc in docs:
+            # split the document into sentences (if needed)
+            if isinstance(doc, str):
+                splits = self._split(doc)
+            else:
+                splits = doc
+            doc_chunks = self._chunk(splits)
+            all_chunks.append(doc_chunks)
+        return all_chunks
