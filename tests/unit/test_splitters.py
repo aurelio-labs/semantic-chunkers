@@ -33,8 +33,12 @@ def test_consecutive_sim_splitter():
     # Verify the splits
     print(splits)
     assert len(splits) == 3, "Expected three sets of chunks"
-    assert splits[0][0].splits == ["doc1 about something"], "First split does not match expected documents"
-    assert splits[2][0].splits == ["doc3 about something"], "Second split does not match expected documents"
+    assert splits[0][0].splits == [
+        "doc1 about something"
+    ], "First split does not match expected documents"
+    assert splits[2][0].splits == [
+        "doc3 about something"
+    ], "Second split does not match expected documents"
 
 
 def test_cumulative_sim_splitter():
@@ -79,11 +83,11 @@ def test_consecutive_similarity_splitter_single_doc():
     mock_encoder.return_value = np.array([[0.5, 0]])
 
     # TODO JB: this currently doesn't pass, need to fix
-    #splitter = ConsecutiveChunker(encoder=mock_encoder, score_threshold=0.5)
+    # splitter = ConsecutiveChunker(encoder=mock_encoder, score_threshold=0.5)
 
-    #docs = ["doc1 about something"]
-    #chunks = splitter(docs)
-    #assert len(chunks) == 1
+    # docs = ["doc1 about something"]
+    # chunks = splitter(docs)
+    # assert len(chunks) == 1
 
 
 def test_cumulative_similarity_splitter_single_doc():
