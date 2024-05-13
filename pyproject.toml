@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "semantic-chunkers"
-version = "0.0.2"
+version = "0.0.3"
 description = "Super advanced chunking methods for AI"
 authors = ["Aurelio AI <hello@aurelio.ai>"]
 readme = "README.md"
