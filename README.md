@@ -23,4 +23,6 @@ Semantic Chunkers is a multi-modal chunking library for intelligent chunking of 
 
 | Notebook | Description |
 | -------- | ----------- |
-| [Introduction](https://github.com/aurelio-labs/semantic-chunkers/blob/main/docs/video-chunker.ipynb) | Chunking videos with semantics |
+| [Introduction](https://github.com/aurelio-labs/semantic-chunkers/blob/main/docs/01-video-chunking.ipynb) | Chunking videos with semantics |
+
+
