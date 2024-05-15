@@ -2803,4 +2803,4 @@ stats = ["matplotlib"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "dc1a6068a1206d81a6a9faab1b58a9a3d58efd5316a53559642a81413546f78d"
+content-hash = "224f8dd4bd72affa352a18196589a14c877577126dcbcc68e2ec14b798b4fda4"
