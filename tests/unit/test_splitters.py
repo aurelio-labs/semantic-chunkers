@@ -54,7 +54,6 @@ def test_cumulative_sim_splitter():
     cohere_encoder = CohereEncoder(
         name="",
         cohere_api_key="a",
-        input_type="",
     )
     splitter = CumulativeChunker(encoder=cohere_encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
