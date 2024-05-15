@@ -18,7 +18,6 @@ def test_consecutive_sim_splitter():
     cohere_encoder = CohereEncoder(
         name="",
         cohere_api_key="a",
-        input_type="",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
     splitter = ConsecutiveChunker(encoder=cohere_encoder, score_threshold=0.9)
@@ -55,7 +54,6 @@ def test_cumulative_sim_splitter():
     cohere_encoder = CohereEncoder(
         name="",
         cohere_api_key="a",
-        input_type="",
     )
     splitter = CumulativeChunker(encoder=cohere_encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
