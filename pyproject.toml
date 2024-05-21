@@ -31,7 +31,7 @@ pytest-xdist = "^3.5.0"
 mypy = "^1.7.1"
 types-pyyaml = "^6.0.12.12"
 types-requests = "^2.31.0"
-black = ">=23.12.1,<24.5.0"
+black = {extras = ["jupyter"], version = ">=23.12.1,<24.5.0"}
 
 [build-system]
 requires = ["poetry-core"]
