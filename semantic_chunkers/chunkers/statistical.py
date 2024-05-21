@@ -78,7 +78,7 @@ class StatisticalChunker(BaseChunker):
         all_chunks = []
 
         new_docs = []
-        # Split the docs that already exceed max_split_tokens to smaller chunks 
+        # Split the docs that already exceed max_split_tokens to smaller chunks
         for doc in docs:
             token_count = tiktoken_length(doc)
             if token_count > self.max_split_tokens:
@@ -92,11 +92,13 @@ class StatisticalChunker(BaseChunker):
             else:
                 new_docs.append(doc)
 
-        docs = [doc for doc in new_docs if doc and doc.strip()] 
+        docs = [doc for doc in new_docs if doc and doc.strip()]
 
         last_split = None
-        for i in tqdm(range(0, len(docs), batch_size), desc="Processing document batches"):
-            batch_docs = docs[i:i + batch_size]
+        for i in tqdm(
+            range(0, len(docs), batch_size), desc="Processing document batches"
+        ):
+            batch_docs = docs[i : i + batch_size]
             if last_split is not None:
                 batch_docs = last_split.splits + batch_docs
 
@@ -120,7 +122,7 @@ class StatisticalChunker(BaseChunker):
 
             if self.enable_statistics:
                 print(self.statistics)
-            
+
         if last_split:
             all_chunks.append(last_split)
 
