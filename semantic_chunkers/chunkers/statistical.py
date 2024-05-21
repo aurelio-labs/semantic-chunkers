@@ -9,6 +9,8 @@ from semantic_chunkers.chunkers.base import BaseChunker
 from semantic_chunkers.utils.text import tiktoken_length
 from semantic_chunkers.utils.logger import logger
 
+from tqdm.auto import tqdm
+
 
 @dataclass
 class ChunkStatistics:
@@ -62,7 +64,7 @@ class StatisticalChunker(BaseChunker):
         self.enable_statistics = enable_statistics
         self.statistics: ChunkStatistics
 
-    def __call__(self, docs: List[str]) -> List[List[Chunk]]:
+    def __call__(self, docs: List[str], batch_size: int = 500) -> List[List[Chunk]]:
         """Chunk documents into smaller chunks based on semantic similarity.
 
         :param docs: list of text documents to be split, if only wanted to
@@ -75,6 +77,8 @@ class StatisticalChunker(BaseChunker):
 
         all_chunks = []
 
+        new_docs = []
+        # Split the docs that already exceed max_split_tokens to smaller chunks 
         for doc in docs:
             token_count = tiktoken_length(doc)
             if token_count > self.max_split_tokens:
@@ -83,22 +87,42 @@ class StatisticalChunker(BaseChunker):
                     f"of {self.max_split_tokens}. "
                     "Splitting to sentences before semantically merging."
                 )
-            splits = self._split(doc)
-            encoded_splits = self._encode_documents(splits)
+                splits = self._split(doc)
+                new_docs.extend(splits)
+            else:
+                new_docs.append(doc)
+
+        docs = [doc for doc in new_docs if doc and doc.strip()] 
+
+        last_split = None
+        for i in tqdm(range(0, len(docs), batch_size), desc="Processing document batches"):
+            batch_docs = docs[i:i + batch_size]
+            if last_split is not None:
+                batch_docs = last_split.splits + batch_docs
+
+            encoded_splits = self._encode_documents(batch_docs)
             similarities = self._calculate_similarity_scores(encoded_splits)
             if self.dynamic_threshold:
-                self._find_optimal_threshold(splits, similarities)
+                self._find_optimal_threshold(batch_docs, similarities)
             else:
                 self.calculated_threshold = self.encoder.score_threshold
             split_indices = self._find_split_indices(similarities=similarities)
-            doc_chunks = self._split_documents(splits, split_indices, similarities)
+            doc_chunks = self._split_documents(batch_docs, split_indices, similarities)
+
+            if len(doc_chunks) > 1:
+                all_chunks.extend(doc_chunks[:-1])
+                last_split = doc_chunks[-1]
+            else:
+                last_split = doc_chunks[0]
 
             if self.plot_chunks:
                 self.plot_similarity_scores(similarities, split_indices, doc_chunks)
 
             if self.enable_statistics:
                 print(self.statistics)
-            all_chunks.append(doc_chunks)
+            
+        if last_split:
+            all_chunks.append(last_split)
 
         return all_chunks
 
