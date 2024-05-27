@@ -13,6 +13,7 @@ class RegexSplitter(BaseSplitter):
     - Ellipses and other punctuation marks used in informal text.
     - Removing control characters and format characters.
     """
+
     regex_pattern = r"""
         # Negative lookbehind for word boundary, word char, dot, word char
         (?<!\b\w\.\w.)

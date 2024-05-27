@@ -6,7 +6,6 @@ from pydantic.v1 import BaseModel, Extra
 from semantic_router.encoders.base import BaseEncoder
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
-from semantic_chunkers.splitters.sentence import RegexSplitter
 
 
 class BaseChunker(BaseModel):
