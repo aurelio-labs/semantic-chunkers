@@ -6,6 +6,7 @@ import pytest
 from semantic_router.encoders.base import BaseEncoder
 from semantic_router.encoders.cohere import CohereEncoder
 from semantic_chunkers import BaseChunker
+from semantic_chunkers import BaseSplitter
 from semantic_chunkers import ConsecutiveChunker
 from semantic_chunkers import CumulativeChunker
 
@@ -106,7 +107,13 @@ def base_splitter_instance():
     mock_encoder = Mock(spec=BaseEncoder)
     mock_encoder.name = "mock_encoder"
     mock_encoder.score_threshold = 0.5
-    return BaseChunker(name="test_splitter", encoder=mock_encoder, score_threshold=0.5)
+    mock_splitter = Mock(spec=BaseSplitter)
+    return BaseChunker(
+        name="test_splitter",
+        encoder=mock_encoder,
+        splitter=mock_splitter,
+        score_threshold=0.5,
+    )
 
 
 def test_base_splitter_call_not_implemented(base_splitter_instance):
