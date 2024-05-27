@@ -1,4 +1,6 @@
 import regex
+from typing import List
+
 from semantic_chunkers.splitters.base import BaseSplitter
 
 
@@ -48,8 +50,7 @@ class RegexSplitter(BaseSplitter):
         [\p{Cc}\p{Cf}]+
     """
 
-    def __call__(self, doc: str) -> list[str]:
-        print("Using regex splitter..")
+    def __call__(self, doc: str) -> List[str]:
         sentences = regex.split(self.regex_pattern, doc, flags=regex.VERBOSE)
         sentences = [sentence.strip() for sentence in sentences if sentence.strip()]
         return sentences
