@@ -5,12 +5,14 @@ from pydantic.v1 import BaseModel, Extra
 
 from semantic_router.encoders.base import BaseEncoder
 from semantic_chunkers.schema import Chunk
-from semantic_chunkers.splitters.sentence import regex_splitter
+from semantic_chunkers.splitters.base import BaseSplitter
+from semantic_chunkers.splitters.sentence import RegexSplitter
 
 
 class BaseChunker(BaseModel):
     name: str
     encoder: BaseEncoder
+    splitter: BaseSplitter
 
     class Config:
         extra = Extra.allow
@@ -19,7 +21,7 @@ class BaseChunker(BaseModel):
         raise NotImplementedError("Subclasses must implement this method")
 
     def _split(self, doc: str) -> List[str]:
-        return regex_splitter(doc)
+        return self.splitter(doc)
 
     def _chunk(self, splits: List[Any]) -> List[Chunk]:
         raise NotImplementedError("Subclasses must implement this method")
