@@ -6,6 +6,8 @@ import numpy as np
 from semantic_router.encoders.base import BaseEncoder
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.chunkers.base import BaseChunker
+from semantic_chunkers.splitters.base import BaseSplitter
+from semantic_chunkers.splitters.sentence import RegexSplitter
 
 
 class ConsecutiveChunker(BaseChunker):
@@ -16,10 +18,11 @@ class ConsecutiveChunker(BaseChunker):
     def __init__(
         self,
         encoder: BaseEncoder,
+        splitter: BaseSplitter = RegexSplitter(),
         name: str = "consecutive_chunker",
         score_threshold: float = 0.45,
     ):
-        super().__init__(name=name, encoder=encoder)
+        super().__init__(name=name, encoder=encoder, splitter=splitter)
         encoder.score_threshold = score_threshold
         self.score_threshold = score_threshold
 
