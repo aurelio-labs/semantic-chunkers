@@ -1,13 +1,18 @@
-from semantic_chunkers.chunkers import BaseChunker
-from semantic_chunkers.chunkers import ConsecutiveChunker
-from semantic_chunkers.chunkers import CumulativeChunker
-from semantic_chunkers.chunkers import StatisticalChunker
+from semantic_chunkers.chunkers import (
+    BaseChunker,
+    ConsecutiveChunker,
+    CumulativeChunker,
+    StatisticalChunker,
+)
+from semantic_chunkers.splitters import BaseSplitter, RegexSplitter
 
 __all__ = [
     "BaseChunker",
     "ConsecutiveChunker",
     "CumulativeChunker",
     "StatisticalChunker",
+    "BaseSplitter",
+    "RegexSplitter",
 ]
 
 __version__ = "0.0.6"

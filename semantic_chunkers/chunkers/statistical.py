@@ -6,6 +6,8 @@ import numpy as np
 from semantic_router.encoders.base import BaseEncoder
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.chunkers.base import BaseChunker
+from semantic_chunkers.splitters.base import BaseSplitter
+from semantic_chunkers.splitters.sentence import RegexSplitter
 from semantic_chunkers.utils.text import tiktoken_length
 from semantic_chunkers.utils.logger import logger
 
@@ -41,6 +43,7 @@ class StatisticalChunker(BaseChunker):
     def __init__(
         self,
         encoder: BaseEncoder,
+        splitter: BaseSplitter = RegexSplitter(),
         name="statistical_chunker",
         threshold_adjustment=0.01,
         dynamic_threshold: bool = True,
@@ -51,7 +54,7 @@ class StatisticalChunker(BaseChunker):
         plot_chunks=False,
         enable_statistics=False,
     ):
-        super().__init__(name=name, encoder=encoder)
+        super().__init__(name=name, encoder=encoder, splitter=splitter)
         self.calculated_threshold: float
         self.encoder = encoder
         self.threshold_adjustment = threshold_adjustment

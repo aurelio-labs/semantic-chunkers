@@ -1,7 +1,10 @@
 import regex
+from typing import List
+
+from semantic_chunkers.splitters.base import BaseSplitter
 
 
-def regex_splitter(text: str) -> list[str]:
+class RegexSplitter(BaseSplitter):
     """
     Enhanced regex pattern to split a given text into sentences more accurately.
 
@@ -11,13 +14,8 @@ def regex_splitter(text: str) -> list[str]:
     - Decimal numbers and dates.
     - Ellipses and other punctuation marks used in informal text.
     - Removing control characters and format characters.
-
-    Args:
-        text (str): The text to split into sentences.
-
-    Returns:
-        list: A list of sentences extracted from the text.
     """
+
     regex_pattern = r"""
         # Negative lookbehind for word boundary, word char, dot, word char
         (?<!\b\w\.\w.)
@@ -51,6 +49,8 @@ def regex_splitter(text: str) -> list[str]:
         # Matches and removes control characters and format characters
         [\p{Cc}\p{Cf}]+
     """
-    sentences = regex.split(regex_pattern, text, flags=regex.VERBOSE)
-    sentences = [sentence.strip() for sentence in sentences if sentence.strip()]
-    return sentences
+
+    def __call__(self, doc: str) -> List[str]:
+        sentences = regex.split(self.regex_pattern, doc, flags=regex.VERBOSE)
+        sentences = [sentence.strip() for sentence in sentences if sentence.strip()]
+        return sentences
