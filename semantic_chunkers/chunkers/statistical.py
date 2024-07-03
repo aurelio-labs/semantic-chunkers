@@ -378,7 +378,7 @@ class StatisticalChunker(BaseChunker):
 
         iteration = 0
         median_tokens = 0
-        calculated_threshold = 0
+        calculated_threshold = 0.0
         while low <= high:
             calculated_threshold = (low + high) / 2
             split_indices = self._find_split_indices(
