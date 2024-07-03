@@ -11,7 +11,11 @@ from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 from semantic_chunkers.splitters.sentence import RegexSplitter
 from semantic_chunkers.utils.logger import logger
-from semantic_chunkers.utils.text import async_retry_with_timeout, tiktoken_length, time_it
+from semantic_chunkers.utils.text import (
+    async_retry_with_timeout,
+    tiktoken_length,
+    time_it,
+)
 
 
 @dataclass
@@ -212,7 +216,7 @@ class StatisticalChunker(BaseChunker):
                     if self.encoder.score_threshold
                     else self.DEFAULT_THRESHOLD
                 )
-                
+
             split_indices = self._find_split_indices(
                 similarities=similarities, calculated_threshold=calculated_threshold
             )

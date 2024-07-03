@@ -1,7 +1,9 @@
 import asyncio
-from functools import wraps
-import tiktoken
 import time
+from functools import wraps
+
+import tiktoken
+
 from semantic_chunkers.utils.logger import logger
 
 
@@ -51,5 +53,7 @@ def async_retry_with_timeout(retries=3, timeout=10):
                         raise
                     else:
                         await asyncio.sleep(2**attempt)  # Exponential backoff
+
         return wrapper
+
     return decorator
