@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from typing import Any, List
 
@@ -10,7 +11,7 @@ from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 from semantic_chunkers.splitters.sentence import RegexSplitter
 from semantic_chunkers.utils.logger import logger
-from semantic_chunkers.utils.text import tiktoken_length
+from semantic_chunkers.utils.text import async_retry_with_timeout, tiktoken_length, time_it
 
 
 @dataclass
@@ -54,7 +55,6 @@ class StatisticalChunker(BaseChunker):
         enable_statistics=False,
     ):
         super().__init__(name=name, encoder=encoder, splitter=splitter)
-        self.calculated_threshold: float
         self.encoder = encoder
         self.threshold_adjustment = threshold_adjustment
         self.dynamic_threshold = dynamic_threshold
@@ -67,6 +67,7 @@ class StatisticalChunker(BaseChunker):
         self.statistics: ChunkStatistics
         self.DEFAULT_THRESHOLD = 0.5
 
+    @time_it
     def _chunk(
         self, splits: List[Any], batch_size: int = 64, enforce_max_tokens: bool = False
     ) -> List[Chunk]:
@@ -99,44 +100,58 @@ class StatisticalChunker(BaseChunker):
             splits = [split for split in new_splits if split and split.strip()]
 
         chunks = []
-        last_split = None
+        last_chunk: Chunk | None = None
         for i in tqdm(range(0, len(splits), batch_size)):
             batch_splits = splits[i : i + batch_size]
-            if last_split is not None:
-                batch_splits = last_split.splits + batch_splits
+            if last_chunk is not None:
+                batch_splits = last_chunk.splits + batch_splits
 
             encoded_splits = self._encode_documents(batch_splits)
             similarities = self._calculate_similarity_scores(encoded_splits)
+
             if self.dynamic_threshold:
-                self._find_optimal_threshold(batch_splits, similarities)
+                calculated_threshold = self._find_optimal_threshold(
+                    batch_splits, similarities
+                )
             else:
-                self.calculated_threshold = (
+                calculated_threshold = (
                     self.encoder.score_threshold
                     if self.encoder.score_threshold
                     else self.DEFAULT_THRESHOLD
                 )
-            split_indices = self._find_split_indices(similarities=similarities)
+            split_indices = self._find_split_indices(
+                similarities=similarities, calculated_threshold=calculated_threshold
+            )
+
             doc_chunks = self._split_documents(
-                batch_splits, split_indices, similarities
+                docs=batch_splits,
+                split_indices=split_indices,
+                similarities=similarities,
             )
 
             if len(doc_chunks) > 1:
                 chunks.extend(doc_chunks[:-1])
-                last_split = doc_chunks[-1]
+                last_chunk = doc_chunks[-1]
             else:
-                last_split = doc_chunks[0]
+                last_chunk = doc_chunks[0]
 
             if self.plot_chunks:
-                self.plot_similarity_scores(similarities, split_indices, doc_chunks)
+                self.plot_similarity_scores(
+                    similarities=similarities,
+                    split_indices=split_indices,
+                    chunks=doc_chunks,
+                    calculated_threshold=calculated_threshold,
+                )
 
             if self.enable_statistics:
                 print(self.statistics)
 
-        if last_split:
-            chunks.append(last_split)
+        if last_chunk:
+            chunks.append(last_chunk)
 
         return chunks
 
+    @time_it
     async def _async_chunk(
         self, splits: List[Any], batch_size: int = 64, enforce_max_tokens: bool = False
     ) -> List[Chunk]:
@@ -168,45 +183,50 @@ class StatisticalChunker(BaseChunker):
 
             splits = [split for split in new_splits if split and split.strip()]
 
-        chunks = []
-        last_split = None
-        for i in tqdm(range(0, len(splits), batch_size)):
-            batch_splits = splits[i : i + batch_size]
-            if last_split is not None:
-                batch_splits = last_split.splits + batch_splits
+        chunks: list[Chunk] = []
 
+        # Step 1: Define process_batch as a separate coroutine function for parallel
+        async def _process_batch(batch_splits: List[str]):
             encoded_splits = await self._async_encode_documents(batch_splits)
+            return batch_splits, encoded_splits
+
+        # Step 2: Create tasks for parallel execution
+        tasks = []
+        for i in range(0, len(splits), batch_size):
+            batch_splits = splits[i : i + batch_size]
+            tasks.append(_process_batch(batch_splits))
+
+        # Step 3: Await tasks and collect results
+        encoded_split_results = await asyncio.gather(*tasks)
+
+        # Step 4: Sequentially process results
+        for batch_splits, encoded_splits in encoded_split_results:
             similarities = self._calculate_similarity_scores(encoded_splits)
             if self.dynamic_threshold:
-                self._find_optimal_threshold(batch_splits, similarities)
+                calculated_threshold = self._find_optimal_threshold(
+                    batch_splits, similarities
+                )
             else:
-                self.calculated_threshold = (
+                calculated_threshold = (
                     self.encoder.score_threshold
                     if self.encoder.score_threshold
                     else self.DEFAULT_THRESHOLD
                 )
-            split_indices = self._find_split_indices(similarities=similarities)
-            doc_chunks = self._split_documents(
-                batch_splits, split_indices, similarities
+                
+            split_indices = self._find_split_indices(
+                similarities=similarities, calculated_threshold=calculated_threshold
             )
 
-            if len(doc_chunks) > 1:
-                chunks.extend(doc_chunks[:-1])
-                last_split = doc_chunks[-1]
-            else:
-                last_split = doc_chunks[0]
+            doc_chunks: list[Chunk] = self._split_documents(
+                docs=batch_splits,
+                split_indices=split_indices,
+                similarities=similarities,
+            )
 
-            if self.plot_chunks:
-                self.plot_similarity_scores(similarities, split_indices, doc_chunks)
-
-            if self.enable_statistics:
-                print(self.statistics)
-
-        if last_split:
-            chunks.append(last_split)
-
+            chunks.extend(doc_chunks)
         return chunks
 
+    @time_it
     def __call__(self, docs: List[str], batch_size: int = 64) -> List[List[Chunk]]:
         """Split documents into smaller chunks based on semantic similarity.
 
@@ -235,6 +255,7 @@ class StatisticalChunker(BaseChunker):
                 raise ValueError("The document must be a string.")
         return all_chunks
 
+    @time_it
     async def acall(self, docs: List[str], batch_size: int = 64) -> List[List[Chunk]]:
         """Split documents into smaller chunks based on semantic similarity.
 
@@ -263,6 +284,7 @@ class StatisticalChunker(BaseChunker):
                 raise ValueError("The document must be a string.")
         return all_chunks
 
+    @time_it
     def _encode_documents(self, docs: List[str]) -> np.ndarray:
         """
         Encodes a list of documents into embeddings. If the number of documents
@@ -286,6 +308,8 @@ class StatisticalChunker(BaseChunker):
 
         return np.array(embeddings)
 
+    @async_retry_with_timeout(retries=3, timeout=5)
+    @time_it
     async def _async_encode_documents(self, docs: List[str]) -> np.ndarray:
         """
         Encodes a list of documents into embeddings. If the number of documents
@@ -321,14 +345,16 @@ class StatisticalChunker(BaseChunker):
             raw_similarities.append(curr_sim_score)
         return raw_similarities
 
-    def _find_split_indices(self, similarities: List[float]) -> List[int]:
+    def _find_split_indices(
+        self, similarities: List[float], calculated_threshold: float
+    ) -> List[int]:
         split_indices = []
         for idx, score in enumerate(similarities):
             logger.debug(f"Similarity score at index {idx}: {score}")
-            if score < self.calculated_threshold:
+            if score < calculated_threshold:
                 logger.debug(
                     f"Adding to split_indices due to score < threshold: "
-                    f"{score} < {self.calculated_threshold}"
+                    f"{score} < {calculated_threshold}"
                 )
                 # Chunk after the document at idx
                 split_indices.append(idx + 1)
@@ -348,11 +374,14 @@ class StatisticalChunker(BaseChunker):
 
         iteration = 0
         median_tokens = 0
+        calculated_threshold = 0
         while low <= high:
-            self.calculated_threshold = (low + high) / 2
-            split_indices = self._find_split_indices(similarity_scores)
+            calculated_threshold = (low + high) / 2
+            split_indices = self._find_split_indices(
+                similarity_scores, calculated_threshold
+            )
             logger.debug(
-                f"Iteration {iteration}: Trying threshold: {self.calculated_threshold}"
+                f"Iteration {iteration}: Trying threshold: {calculated_threshold}"
             )
 
             # Calculate the token counts for each split using the cumulative sums
@@ -376,20 +405,20 @@ class StatisticalChunker(BaseChunker):
                 logger.debug("Median tokens in target range. Stopping iteration.")
                 break
             elif median_tokens < self.min_split_tokens:
-                high = self.calculated_threshold - self.threshold_adjustment
+                high = calculated_threshold - self.threshold_adjustment
                 logger.debug(f"Iteration {iteration}: Adjusting high to {high}")
             else:
-                low = self.calculated_threshold + self.threshold_adjustment
+                low = calculated_threshold + self.threshold_adjustment
                 logger.debug(f"Iteration {iteration}: Adjusting low to {low}")
             iteration += 1
 
         logger.debug(
-            f"Optimal threshold {self.calculated_threshold} found "
+            f"Optimal threshold {calculated_threshold} found "
             f"with median tokens ({median_tokens}) in target range "
             f"({self.min_split_tokens}-{self.max_split_tokens})."
         )
 
-        return self.calculated_threshold
+        return calculated_threshold
 
     def _split_documents(
         self, docs: List[str], split_indices: List[int], similarities: List[float]
@@ -440,7 +469,7 @@ class StatisticalChunker(BaseChunker):
                     )
                     logger.debug(
                         f"Chunk finalized with {current_tokens_count} tokens due to "
-                        f"threshold {self.calculated_threshold}."
+                        f"threshold {triggered_score}."
                     )
                     current_split, current_tokens_count = [], 0
                     chunks_by_threshold += 1
@@ -528,6 +557,7 @@ class StatisticalChunker(BaseChunker):
         similarities: List[float],
         split_indices: List[int],
         chunks: list[Chunk],
+        calculated_threshold: float,
     ):
         try:
             from matplotlib import pyplot as plt
@@ -550,7 +580,7 @@ class StatisticalChunker(BaseChunker):
                 label="Chunk" if split_index == split_indices[0] else "",
             )
         axs[0].axhline(
-            y=self.calculated_threshold,
+            y=calculated_threshold,
             color="g",
             linestyle="-.",
             label="Threshold Similarity Score",
@@ -569,8 +599,7 @@ class StatisticalChunker(BaseChunker):
         axs[0].set_xlabel("Document Segment Index")
         axs[0].set_ylabel("Similarity Score")
         axs[0].set_title(
-            f"Threshold: {self.calculated_threshold} |"
-            f" Window Size: {self.window_size}",
+            f"Threshold: {calculated_threshold} |" f" Window Size: {self.window_size}",
             loc="right",
             fontsize=10,
         )
