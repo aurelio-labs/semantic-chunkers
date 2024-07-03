@@ -2,8 +2,8 @@ from typing import Any, List
 
 from colorama import Fore, Style
 from pydantic.v1 import BaseModel, Extra
-
 from semantic_router.encoders.base import BaseEncoder
+
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 
