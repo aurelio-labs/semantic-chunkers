@@ -1,11 +1,11 @@
 from typing import Any, List
-from tqdm.auto import tqdm
 
 import numpy as np
-
 from semantic_router.encoders import BaseEncoder
-from semantic_chunkers.schema import Chunk
+from tqdm.auto import tqdm
+
 from semantic_chunkers.chunkers.base import BaseChunker
+from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 from semantic_chunkers.splitters.sentence import RegexSplitter
 
@@ -76,7 +76,9 @@ class CumulativeChunker(BaseChunker):
 
         return chunks
 
-    async def _async_chunk(self, splits: List[Any], batch_size: int = 64) -> List[Chunk]:
+    async def _async_chunk(
+        self, splits: List[Any], batch_size: int = 64
+    ) -> List[Chunk]:
         """Merge splits into chunks using semantic similarity.
 
         :param splits: splits to be merged into chunks.

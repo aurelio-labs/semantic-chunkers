@@ -1,5 +1,6 @@
-import regex
 from typing import List
+
+import regex
 
 from semantic_chunkers.splitters.base import BaseSplitter
 

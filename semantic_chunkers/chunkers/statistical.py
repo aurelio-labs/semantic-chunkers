@@ -2,16 +2,15 @@ from dataclasses import dataclass
 from typing import Any, List
 
 import numpy as np
-
 from semantic_router.encoders.base import BaseEncoder
-from semantic_chunkers.schema import Chunk
+from tqdm.auto import tqdm
+
 from semantic_chunkers.chunkers.base import BaseChunker
+from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 from semantic_chunkers.splitters.sentence import RegexSplitter
-from semantic_chunkers.utils.text import tiktoken_length
 from semantic_chunkers.utils.logger import logger
-
-from tqdm.auto import tqdm
+from semantic_chunkers.utils.text import tiktoken_length
 
 
 @dataclass
@@ -236,7 +235,6 @@ class StatisticalChunker(BaseChunker):
                 raise ValueError("The document must be a string.")
         return all_chunks
 
-
     async def acall(self, docs: List[str], batch_size: int = 64) -> List[List[Chunk]]:
         """Split documents into smaller chunks based on semantic similarity.
 
@@ -264,7 +262,6 @@ class StatisticalChunker(BaseChunker):
             else:
                 raise ValueError("The document must be a string.")
         return all_chunks
-
 
     def _encode_documents(self, docs: List[str]) -> np.ndarray:
         """

@@ -2,15 +2,16 @@ from unittest.mock import AsyncMock, Mock, create_autospec
 
 import numpy as np
 import pytest
-
 from semantic_router.encoders.base import BaseEncoder
 from semantic_router.encoders.cohere import CohereEncoder
-from semantic_chunkers import BaseChunker
-from semantic_chunkers import BaseSplitter
-from semantic_chunkers import ConsecutiveChunker
-from semantic_chunkers import CumulativeChunker
-from semantic_chunkers import StatisticalChunker
 
+from semantic_chunkers import (
+    BaseChunker,
+    BaseSplitter,
+    ConsecutiveChunker,
+    CumulativeChunker,
+    StatisticalChunker,
+)
 
 
 def test_consecutive_sim_splitter():
@@ -111,6 +112,7 @@ def test_cumulative_sim_splitter():
     # Verify the splits
     # The expected outcome needs to match the logic defined in your mock_encoder's side_effect
     assert len(splits) == 5, f"{len(splits)}"
+
 
 @pytest.mark.asyncio
 async def test_async_cumulative_sim_splitter():
