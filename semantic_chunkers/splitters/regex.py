@@ -55,7 +55,7 @@ class RegexSplitter(BaseSplitter):
     def __call__(
         self, doc: str, delimiters: List[Union[str, regex.Pattern]] = []
     ) -> List[str]:
-        if not  delimiters:
+        if not delimiters:
             compiled_pattern = regex.compile(self.regex_pattern)
             delimiters.append(compiled_pattern)
         sentences = [doc]

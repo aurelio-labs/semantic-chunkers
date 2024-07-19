@@ -43,6 +43,8 @@ class RegexChunker(BaseChunker):
                     current_chunk.token_count = 0
 
                 current_chunk.splits.append(sentence)
+                if current_chunk.token_count is None:
+                    current_chunk.token_count = 0
                 current_chunk.token_count += sentence_token_count
 
         # Last chunk
