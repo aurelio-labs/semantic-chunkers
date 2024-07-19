@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, List, Optional
 
 import numpy as np
 from semantic_router.encoders.base import BaseEncoder
@@ -106,7 +106,7 @@ class StatisticalChunker(BaseChunker):
             splits = [split for split in new_splits if split and split.strip()]
 
         chunks = []
-        last_chunk: Chunk | None = None
+        last_chunk: Optional[Chunk] = None
         for i in tqdm(range(0, len(splits), batch_size)):
             batch_splits = splits[i : i + batch_size]
             if last_chunk is not None:
