@@ -11,8 +11,8 @@ __all__ = [
     "ConsecutiveChunker",
     "CumulativeChunker",
     "StatisticalChunker",
-    "BaseSplitter",
     "RegexSplitter",
+    "BaseSplitter",
 ]
 
 __version__ = "0.0.8"

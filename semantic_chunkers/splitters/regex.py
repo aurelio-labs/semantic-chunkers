@@ -52,6 +52,18 @@ class RegexSplitter(BaseSplitter):
     """
 
     def __call__(self, doc: str) -> List[str]:
-        sentences = regex.split(self.regex_pattern, doc, flags=regex.VERBOSE)
-        sentences = [sentence.strip() for sentence in sentences if sentence.strip()]
+        # Step 1: Split by \n\n
+        chunks = doc.split("\n\n")
+        sentences = []
+        for chunk in chunks:
+            # Step 2: Split by \n within each chunk
+            sub_chunks = chunk.split("\n")
+            for sub_chunk in sub_chunks:
+                # Step 3: Split by regex pattern within each sub_chunk
+                sub_sentences = regex.split(
+                    self.regex_pattern, sub_chunk, flags=regex.VERBOSE
+                )
+                for sentence in sub_sentences:
+                    if sentence.strip():
+                        sentences.append(sentence.strip())
         return sentences

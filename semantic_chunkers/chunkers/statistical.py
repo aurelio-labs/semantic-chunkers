@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 from semantic_chunkers.chunkers.base import BaseChunker
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
-from semantic_chunkers.splitters.sentence import RegexSplitter
+from semantic_chunkers.splitters.regex import RegexSplitter
 from semantic_chunkers.utils.logger import logger
 from semantic_chunkers.utils.text import (
     async_retry_with_timeout,
