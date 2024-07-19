@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, List, Optional
 
 import numpy as np
 from semantic_router.encoders.base import BaseEncoder
@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 from semantic_chunkers.chunkers.base import BaseChunker
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
-from semantic_chunkers.splitters.sentence import RegexSplitter
+from semantic_chunkers.splitters.regex import RegexSplitter
 from semantic_chunkers.utils.logger import logger
 from semantic_chunkers.utils.text import (
     async_retry_with_timeout,
@@ -44,6 +44,8 @@ class ChunkStatistics:
 
 
 class StatisticalChunker(BaseChunker):
+    encoder: BaseEncoder
+
     def __init__(
         self,
         encoder: BaseEncoder,
@@ -104,7 +106,7 @@ class StatisticalChunker(BaseChunker):
             splits = [split for split in new_splits if split and split.strip()]
 
         chunks = []
-        last_chunk: Chunk | None = None
+        last_chunk: Optional[Chunk] = None
         for i in tqdm(range(0, len(splits), batch_size)):
             batch_splits = splits[i : i + batch_size]
             if last_chunk is not None:

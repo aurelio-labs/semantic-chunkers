@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 from colorama import Fore, Style
 from pydantic.v1 import BaseModel, Extra
@@ -10,7 +10,7 @@ from semantic_chunkers.splitters.base import BaseSplitter
 
 class BaseChunker(BaseModel):
     name: str
-    encoder: BaseEncoder
+    encoder: Optional[BaseEncoder]
     splitter: BaseSplitter
 
     class Config:

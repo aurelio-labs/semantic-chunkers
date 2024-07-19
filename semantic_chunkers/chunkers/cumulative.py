@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 from semantic_chunkers.chunkers.base import BaseChunker
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
-from semantic_chunkers.splitters.sentence import RegexSplitter
+from semantic_chunkers.splitters.regex import RegexSplitter
 
 
 class CumulativeChunker(BaseChunker):
@@ -15,6 +15,8 @@ class CumulativeChunker(BaseChunker):
     Called "cumulative sim" because we check the similarities of the
     embeddings of cumulative concatenated documents with the next document.
     """
+
+    encoder: BaseEncoder
 
     def __init__(
         self,
