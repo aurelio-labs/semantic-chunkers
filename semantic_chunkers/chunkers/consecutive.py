@@ -15,6 +15,8 @@ class ConsecutiveChunker(BaseChunker):
     Called "consecutive sim chunker" because we check the similarities of consecutive document embeddings (compare ith to i+1th document embedding).
     """
 
+    encoder: BaseEncoder
+
     def __init__(
         self,
         encoder: BaseEncoder,

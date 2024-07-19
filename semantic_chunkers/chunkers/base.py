@@ -10,7 +10,7 @@ from semantic_chunkers.splitters.base import BaseSplitter
 
 class BaseChunker(BaseModel):
     name: str
-    encoder: BaseEncoder
+    encoder: BaseEncoder | None
     splitter: BaseSplitter
 
     class Config:

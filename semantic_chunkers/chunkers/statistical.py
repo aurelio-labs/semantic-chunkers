@@ -44,6 +44,8 @@ class ChunkStatistics:
 
 
 class StatisticalChunker(BaseChunker):
+    encoder: BaseEncoder
+
     def __init__(
         self,
         encoder: BaseEncoder,

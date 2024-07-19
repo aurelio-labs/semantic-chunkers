@@ -16,6 +16,8 @@ class CumulativeChunker(BaseChunker):
     embeddings of cumulative concatenated documents with the next document.
     """
 
+    encoder: BaseEncoder
+
     def __init__(
         self,
         encoder: BaseEncoder,
