@@ -12,10 +12,12 @@ from semantic_chunkers.utils import text
 class RegexChunker(BaseChunker):
     def __init__(
         self,
+        splitter: RegexSplitter = RegexSplitter(),
         max_chunk_tokens: int = 300,
         delimiters: List[Union[str, regex.Pattern]] = [],
     ):
-        super().__init__(name="regex_chunker", encoder=None, splitter=RegexSplitter())
+        super().__init__(name="regex_chunker", encoder=None, splitter=splitter)
+        self.splitter: RegexSplitter = splitter
         self.max_chunk_tokens = max_chunk_tokens
         self.delimiters = delimiters
 
@@ -28,22 +30,19 @@ class RegexChunker(BaseChunker):
         current_chunk.token_count = 0
 
         for doc in docs:
-            regex_splitter = RegexSplitter()
-            sentences = regex_splitter(doc, delimiters=self.delimiters)
+            sentences = self.splitter(doc, delimiters=self.delimiters)
             for sentence in sentences:
                 sentence_token_count = text.tiktoken_length(sentence)
-
                 if (
                     current_chunk.token_count + sentence_token_count
                     > self.max_chunk_tokens
                 ):
-                    chunks.append(current_chunk)
+                    if current_chunk.splits:
+                        chunks.append(current_chunk)
                     current_chunk = Chunk(splits=[])
                     current_chunk.token_count = 0
 
                 current_chunk.splits.append(sentence)
-                if current_chunk.token_count is None:
-                    current_chunk.token_count = 0
                 current_chunk.token_count += sentence_token_count
 
         # Last chunk
