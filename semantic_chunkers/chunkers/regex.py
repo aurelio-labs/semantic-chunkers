@@ -1,5 +1,7 @@
 import asyncio
-from typing import List
+from typing import List, Union
+
+import regex
 
 from semantic_chunkers.chunkers.base import BaseChunker
 from semantic_chunkers.schema import Chunk
@@ -8,9 +10,14 @@ from semantic_chunkers.utils import text
 
 
 class RegexChunker(BaseChunker):
-    def __init__(self, max_chunk_tokens: int = 300):
+    def __init__(
+        self,
+        max_chunk_tokens: int = 300,
+        delimiters: List[Union[str, regex.Pattern]] = [],
+    ):
         super().__init__(name="regex_chunker", encoder=None, splitter=RegexSplitter())
         self.max_chunk_tokens = max_chunk_tokens
+        self.delimiters = delimiters
 
     def __call__(self, docs: list[str]) -> List[List[Chunk]]:
         chunks = []
@@ -22,7 +29,7 @@ class RegexChunker(BaseChunker):
 
         for doc in docs:
             regex_splitter = RegexSplitter()
-            sentences = regex_splitter(doc)
+            sentences = regex_splitter(doc, delimiters=self.delimiters)
             for sentence in sentences:
                 sentence_token_count = text.tiktoken_length(sentence)
 

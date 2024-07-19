@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 import regex
 
@@ -8,13 +8,6 @@ from semantic_chunkers.splitters.base import BaseSplitter
 class RegexSplitter(BaseSplitter):
     """
     Enhanced regex pattern to split a given text into sentences more accurately.
-
-    The enhanced regex pattern includes handling for:
-    - Direct speech and quotations.
-    - Abbreviations, initials, and acronyms.
-    - Decimal numbers and dates.
-    - Ellipses and other punctuation marks used in informal text.
-    - Removing control characters and format characters.
     """
 
     regex_pattern = r"""
@@ -49,21 +42,36 @@ class RegexSplitter(BaseSplitter):
         |
         # Matches and removes control characters and format characters
         [\p{Cc}\p{Cf}]+
+        # OR
+        |
+        # Splits after punctuation marks followed by another punctuation mark
+        (?<=[\.!?])(?=[\.!?])
+        # OR
+        |
+        # Splits after exclamation or question marks followed by whitespace or end of string
+        (?<=[!?])(?=\s|$)
     """
 
-    def __call__(self, doc: str) -> List[str]:
-        # Step 1: Split by \n\n
-        chunks = doc.split("\n\n")
-        sentences = []
-        for chunk in chunks:
-            # Step 2: Split by \n within each chunk
-            sub_chunks = chunk.split("\n")
-            for sub_chunk in sub_chunks:
-                # Step 3: Split by regex pattern within each sub_chunk
-                sub_sentences = regex.split(
-                    self.regex_pattern, sub_chunk, flags=regex.VERBOSE
-                )
-                for sentence in sub_sentences:
-                    if sentence.strip():
-                        sentences.append(sentence.strip())
+    def __call__(
+        self, doc: str, delimiters: List[Union[str, regex.Pattern]] = []
+    ) -> List[str]:
+        # Ensure the regex pattern is applied last
+        delimiters.append(regex.compile(self.regex_pattern, flags=regex.VERBOSE))
+
+        sentences = [doc]
+        for delimiter in delimiters:
+            sentences_for_next_delimiter = []
+            for sentence in sentences:
+                if isinstance(delimiter, regex.Pattern):
+                    sub_sentences = delimiter.split(sentence)
+                    split_char = ""  # No single character to append for regex pattern
+                else:
+                    sub_sentences = sentence.split(delimiter)
+                    split_char = delimiter
+                for i, sub_sentence in enumerate(sub_sentences):
+                    if i < len(sub_sentences) - 1:
+                        sub_sentence += split_char
+                    if sub_sentence.strip():
+                        sentences_for_next_delimiter.append(sub_sentence.strip())
+            sentences = sentences_for_next_delimiter
         return sentences
