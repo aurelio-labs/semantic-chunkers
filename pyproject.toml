@@ -11,15 +11,15 @@ license = {file = "LICENSE"}
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-pydantic = "2.5.3"
-numpy = "1.26.0"
-colorlog = "6.8.0"
-colorama = "0.4.6"
-regex = "2023.12.25"
-tiktoken = "0.7.0"
-matplotlib = { version = "3.8.3", optional = true}
-requests-mock = "1.12.1"
-semantic-router = "0.0.66"
+pydantic = "^2.5.3"
+numpy = "^1.26.0"
+colorlog = "^6.8.0"
+colorama = "^0.4.6"
+regex = "^2023.12.25"
+tiktoken = ">=0.7.0,<1.0.0"
+matplotlib = { version = "^3.8.3", optional = true}
+requests-mock = "^1.12.1"
+semantic-router = "^0.0.68"
 
 [tool.poetry.extras]
 stats = ["matplotlib"]
