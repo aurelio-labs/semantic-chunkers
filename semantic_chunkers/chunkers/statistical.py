@@ -112,8 +112,13 @@ class StatisticalChunker(BaseChunker):
             if last_chunk is not None:
                 batch_splits = last_chunk.splits + batch_splits
 
-            encoded_splits = self._encode_documents(batch_splits)
-            similarities = self._calculate_similarity_scores(encoded_splits)
+            encoded_splits: np.ndarray = self._encode_documents(batch_splits)
+
+            if encoded_splits and len(encoded_splits) == 0:
+                continue
+            similarities: List[float] = self._calculate_similarity_scores(
+                encoded_docs=encoded_splits
+            )
 
             if self.dynamic_threshold:
                 calculated_threshold = self._find_optimal_threshold(
@@ -207,6 +212,8 @@ class StatisticalChunker(BaseChunker):
 
         # Step 4: Sequentially process results
         for batch_splits, encoded_splits in encoded_split_results:
+            if encoded_splits and len(encoded_splits) == 0:
+                continue
             similarities = self._calculate_similarity_scores(encoded_splits)
             if self.dynamic_threshold:
                 calculated_threshold = self._find_optimal_threshold(
@@ -246,6 +253,8 @@ class StatisticalChunker(BaseChunker):
 
         all_chunks = []
         for doc in docs:
+            if doc is None or doc.strip() == "" or not isinstance(doc, str):
+                continue
             token_count = tiktoken_length(doc)
             if token_count > self.max_split_tokens:
                 logger.info(
@@ -275,6 +284,8 @@ class StatisticalChunker(BaseChunker):
 
         all_chunks = []
         for doc in docs:
+            if doc is None or doc.strip() == "" or not isinstance(doc, str):
+                continue
             token_count = tiktoken_length(doc)
             if token_count > self.max_split_tokens:
                 logger.info(
@@ -541,8 +552,9 @@ class StatisticalChunker(BaseChunker):
             token_counts = [
                 split.token_count for split in chunks if split.token_count is not None
             ]
-            min_token_size, max_token_size = min(token_counts, default=0), max(
-                token_counts, default=0
+            min_token_size, max_token_size = (
+                min(token_counts, default=0),
+                max(token_counts, default=0),
             )
 
         self.statistics = ChunkStatistics(
