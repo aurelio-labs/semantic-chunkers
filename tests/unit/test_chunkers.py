@@ -3,8 +3,7 @@ from unittest.mock import AsyncMock, Mock, create_autospec
 import numpy as np
 import pytest
 from semantic_router.encoders.base import BaseEncoder
-from semantic_router.encoders.cohere import CohereEncoder
-
+from semantic_router.encoders.openai import OpenAIEncoder
 from semantic_chunkers import (
     BaseChunker,
     BaseSplitter,
@@ -19,12 +18,12 @@ def test_consecutive_sim_splitter():
     mock_encoder = Mock()
     mock_encoder.return_value = np.array([[1, 0], [1, 0.1], [0, 1]])
 
-    cohere_encoder = CohereEncoder(
+    openai_encoder = OpenAIEncoder(
         name="",
-        cohere_api_key="a",
+        openai_api_key="a",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
-    splitter = ConsecutiveChunker(encoder=cohere_encoder, score_threshold=0.9)
+    splitter = ConsecutiveChunker(encoder=openai_encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
 
     # Define some documents
@@ -54,12 +53,12 @@ async def test_async_consecutive_sim_splitter():
 
     mock_encoder.acall.side_effect = async_return
 
-    cohere_encoder = CohereEncoder(
+    openai_encoder = OpenAIEncoder(
         name="",
-        cohere_api_key="a",
+        openai_api_key="a",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
-    splitter = ConsecutiveChunker(encoder=cohere_encoder, score_threshold=0.9)
+    splitter = ConsecutiveChunker(encoder=openai_encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
 
     # Define some documents
@@ -90,11 +89,11 @@ def test_cumulative_sim_splitter():
     )
 
     # Instantiate the CumulativeSimSplitter with the mock encoder
-    cohere_encoder = CohereEncoder(
+    openai_encoder = OpenAIEncoder(
         name="",
-        cohere_api_key="a",
+        openai_api_key="a",
     )
-    splitter = CumulativeChunker(encoder=cohere_encoder, score_threshold=0.9)
+    splitter = CumulativeChunker(encoder=openai_encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
 
     # Define some documents
@@ -126,11 +125,11 @@ async def test_async_cumulative_sim_splitter():
     )
 
     # Instantiate the CumulativeSimSplitter with the mock encoder
-    cohere_encoder = CohereEncoder(
+    openai_encoder = OpenAIEncoder(
         name="",
-        cohere_api_key="a",
+        openai_api_key="a",
     )
-    splitter = CumulativeChunker(encoder=cohere_encoder, score_threshold=0.9)
+    splitter = CumulativeChunker(encoder=openai_encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
 
     # Define some documents
@@ -180,12 +179,12 @@ def test_statistical_chunker():
     mock_encoder = Mock()
     mock_encoder.side_effect = lambda docs: np.array([[1, 0] for _ in docs])
 
-    cohere_encoder = CohereEncoder(
+    openai_encoder = OpenAIEncoder(
         name="",
-        cohere_api_key="a",
+        openai_api_key="a",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
-    splitter = StatisticalChunker(encoder=cohere_encoder)
+    splitter = StatisticalChunker(encoder=openai_encoder)
     splitter.encoder = mock_encoder
 
     # Define some documents
@@ -211,12 +210,12 @@ async def test_async_statistical_chunker():
     mock_encoder = AsyncMock()
     mock_encoder.side_effect = lambda docs: np.array([[1, 0] for _ in docs])
 
-    cohere_encoder = CohereEncoder(
+    openai_encoder = OpenAIEncoder(
         name="",
-        cohere_api_key="a",
+        openai_api_key="a",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
-    splitter = StatisticalChunker(encoder=cohere_encoder)
+    splitter = StatisticalChunker(encoder=openai_encoder)
     splitter.encoder = mock_encoder
 
     # Define some documents
