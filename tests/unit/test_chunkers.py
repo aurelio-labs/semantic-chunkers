@@ -214,7 +214,7 @@ async def test_async_statistical_chunker():
     mock_encoder.side_effect = lambda docs: np.array([[1, 0] for _ in docs])
 
     encoder = OpenAIEncoder(
-        name="",
+        name=ENCODER_NAME,
         openai_api_key="a",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
