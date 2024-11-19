@@ -39,6 +39,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install --all-extras
+          pip install "semantic-router[cohere]"
       - name: Install nltk
         run: |
           pip install nltk
