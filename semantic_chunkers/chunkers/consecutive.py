@@ -1,7 +1,7 @@
 from typing import Any, List
 
 import numpy as np
-from semantic_router.encoders.base import BaseEncoder
+from semantic_router.encoders.base import DenseEncoder
 from tqdm.auto import tqdm
 
 from semantic_chunkers.chunkers.base import BaseChunker
@@ -15,11 +15,11 @@ class ConsecutiveChunker(BaseChunker):
     Called "consecutive sim chunker" because we check the similarities of consecutive document embeddings (compare ith to i+1th document embedding).
     """
 
-    encoder: BaseEncoder
+    encoder: DenseEncoder
 
     def __init__(
         self,
-        encoder: BaseEncoder,
+        encoder: DenseEncoder,
         splitter: BaseSplitter = RegexSplitter(),
         name: str = "consecutive_chunker",
         score_threshold: float = 0.45,

@@ -1,7 +1,7 @@
 from typing import Any, List
 
 import numpy as np
-from semantic_router.encoders import BaseEncoder
+from semantic_router.encoders import DenseEncoder
 from tqdm.auto import tqdm
 
 from semantic_chunkers.chunkers.base import BaseChunker
@@ -16,11 +16,11 @@ class CumulativeChunker(BaseChunker):
     embeddings of cumulative concatenated documents with the next document.
     """
 
-    encoder: BaseEncoder
+    encoder: DenseEncoder
 
     def __init__(
         self,
-        encoder: BaseEncoder,
+        encoder: DenseEncoder,
         splitter: BaseSplitter = RegexSplitter(),
         name: str = "cumulative_chunker",
         score_threshold: float = 0.45,
