@@ -10,7 +10,7 @@ packages = [{include = "semantic_chunkers"}]
 license = {file = "LICENSE"}
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 pydantic = "^2.5.3"
 numpy = "^1.26.0"
 colorlog = "^6.8.0"
