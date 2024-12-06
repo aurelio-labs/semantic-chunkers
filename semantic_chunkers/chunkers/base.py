@@ -20,7 +20,7 @@ class BaseChunker(BaseModel):
     @validator("encoder", pre=True, always=True)
     def set_encoder(cls, v):
         if v is None:
-            return DenseEncoder()
+            return DenseEncoder(name="default")
         return v
 
     def __call__(self, docs: List[str]) -> List[List[Chunk]]:
