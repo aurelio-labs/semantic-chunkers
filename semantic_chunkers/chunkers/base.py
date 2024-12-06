@@ -2,7 +2,7 @@ from typing import Any, List, Optional
 
 from colorama import Fore, Style
 from pydantic.v1 import BaseModel, Extra
-from semantic_router.encoders.base import BaseEncoder
+from semantic_router.encoders.base import DenseEncoder
 
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
@@ -10,7 +10,7 @@ from semantic_chunkers.splitters.base import BaseSplitter
 
 class BaseChunker(BaseModel):
     name: str
-    encoder: Optional[BaseEncoder]
+    encoder: Optional[DenseEncoder]
     splitter: BaseSplitter
 
     class Config:

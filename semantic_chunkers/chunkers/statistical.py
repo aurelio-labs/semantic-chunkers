@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, List, Optional
 
 import numpy as np
-from semantic_router.encoders.base import BaseEncoder
+from semantic_router.encoders.base import DenseEncoder
 from tqdm.auto import tqdm
 
 from semantic_chunkers.chunkers.base import BaseChunker
@@ -44,11 +44,11 @@ class ChunkStatistics:
 
 
 class StatisticalChunker(BaseChunker):
-    encoder: BaseEncoder
+    encoder: DenseEncoder
 
     def __init__(
         self,
-        encoder: BaseEncoder,
+        encoder: DenseEncoder,
         splitter: BaseSplitter = RegexSplitter(),
         name="statistical_chunker",
         threshold_adjustment=0.01,

@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, Mock, create_autospec
 
 import numpy as np
 import pytest
-from semantic_router.encoders.base import BaseEncoder
+from semantic_router.encoders.base import DenseEncoder
 from semantic_router.encoders.openai import OpenAIEncoder
 
 from semantic_chunkers import (
@@ -82,7 +82,7 @@ async def test_async_consecutive_sim_splitter():
 
 
 def test_cumulative_sim_splitter():
-    # Mock the BaseEncoder
+    # Mock the DenseEncoder
     mock_encoder = Mock()
     # Adjust the side_effect to simulate the encoder's behavior for cumulative document comparisons
     # This simplistic simulation assumes binary embeddings for demonstration purposes
@@ -118,7 +118,7 @@ def test_cumulative_sim_splitter():
 
 @pytest.mark.asyncio
 async def test_async_cumulative_sim_splitter():
-    # Mock the BaseEncoder
+    # Mock the DenseEncoder
     mock_encoder = AsyncMock()
     # Adjust the side_effect to simulate the encoder's behavior for cumulative document comparisons
     # This simplistic simulation assumes binary embeddings for demonstration purposes
@@ -153,7 +153,7 @@ async def test_async_cumulative_sim_splitter():
 
 
 def test_consecutive_similarity_splitter_single_doc():
-    mock_encoder = create_autospec(BaseEncoder)
+    mock_encoder = create_autospec(DenseEncoder)
     # Assuming any return value since it should not reach the point of using the encoder
     mock_encoder.return_value = np.array([[0.5, 0]])
 
@@ -166,7 +166,7 @@ def test_consecutive_similarity_splitter_single_doc():
 
 
 def test_cumulative_similarity_splitter_single_doc():
-    mock_encoder = create_autospec(BaseEncoder)
+    mock_encoder = create_autospec(DenseEncoder)
     # Assuming any return value since it should not reach the point of using the encoder
     mock_encoder.return_value = np.array([[0.5, 0]])
 
@@ -241,7 +241,7 @@ async def test_async_statistical_chunker():
 @pytest.fixture
 def base_splitter_instance():
     # Now MockEncoder includes default values for required fields
-    mock_encoder = Mock(spec=BaseEncoder)
+    mock_encoder = Mock(spec=DenseEncoder)
     mock_encoder.name = "mock_encoder"
     mock_encoder.score_threshold = 0.5
     mock_splitter = Mock(spec=BaseSplitter)
