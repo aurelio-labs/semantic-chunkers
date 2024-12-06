@@ -1,7 +1,7 @@
 from typing import Any, List, Optional
 
 from colorama import Fore, Style
-from pydantic.v1 import BaseModel, Extra
+from pydantic.v1 import BaseModel, Extra, validator
 from semantic_router.encoders.base import DenseEncoder
 
 from semantic_chunkers.schema import Chunk
@@ -15,6 +15,13 @@ class BaseChunker(BaseModel):
 
     class Config:
         extra = Extra.allow
+        arbitrary_types_allowed = True
+
+    @validator("encoder", pre=True, always=True)
+    def set_encoder(cls, v):
+        if v is None:
+            return DenseEncoder()
+        return v
 
     def __call__(self, docs: List[str]) -> List[List[Chunk]]:
         raise NotImplementedError("Subclasses must implement this method")
