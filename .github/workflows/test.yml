@@ -23,7 +23,7 @@ jobs:
     - name: Install Dependencies (Essential Only)
       run: uv sync
     - name: Confirm Library Imports
-      run: uv run python -c "import semantic_router"
+      run: uv run python -c "import semantic_chunkers"
     - name: Install Dependencies (All)
       run: uv sync --extra dev
     - name: Pytest All
