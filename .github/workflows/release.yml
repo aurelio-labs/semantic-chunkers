@@ -8,34 +8,42 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ '3.10' ]
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.11'
     - name: Install uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+        python-version: ${{ matrix.python-version }}
     - name: Install dependencies
-      run: uv pip install build
+      run: uv sync --extra dev
     - name: Build
-      run: python -m build
+      run: uv build
 
   publish:
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ '3.10' ]
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.11'
     - name: Install uv
-      uses: astral-sh/setup-uv@v4
-    - name: Build and Publish to PyPI
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: uv sync --extra dev
+    - name: Build
+      run: uv build
+    - name: Publish to PyPI
       run: |
-        uv pip install build twine
-        python -m build
-        python -m twine upload dist/* -u __token__ -p $PYPI_API_TOKEN
+        uv publish --username "__token__" --password "$PYPI_API_TOKEN"
       env:
         PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
