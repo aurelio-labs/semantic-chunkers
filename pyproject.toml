@@ -39,6 +39,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["semantic_chunkers"]
 
+[tool.hatch.build.targets.wheel.shared-data]
+"semantic_chunkers/py.typed" = "semantic_chunkers/py.typed"
+
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["ALL"]
 
