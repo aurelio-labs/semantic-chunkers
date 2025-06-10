@@ -1,6 +1,6 @@
 [project]
 name = "semantic-chunkers"
-version = "0.1.0"
+version = "0.1.1"
 description = "Super advanced chunking methods for AI"
 authors = [{name = "Aurelio AI", email = "hello@aurelio.ai"}]
 readme = "README.md"
@@ -38,6 +38,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["semantic_chunkers"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"semantic_chunkers/py.typed" = "semantic_chunkers/py.typed"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["ALL"]
