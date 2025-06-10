@@ -44,9 +44,7 @@ class BaseChunker(BaseModel):
             else:
                 triggered = "token limit"
             print(
-                f"Split {i + 1}, "
-                f"tokens {split.token_count}, "
-                f"triggered by: {triggered}"
+                f"Split {i + 1}, tokens {split.token_count}, triggered by: {triggered}"
             )
             print(colored_content)
             print("-" * 88)

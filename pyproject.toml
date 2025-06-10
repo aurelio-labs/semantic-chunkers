@@ -38,11 +38,15 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["semantic_chunkers"]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["ALL"]
 
 [tool.ruff]
 line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "T201", "NPY201"]
+ignore = ["E501", "T201"]
 
 [tool.mypy]
 ignore_missing_imports = true
