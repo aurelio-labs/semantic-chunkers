@@ -22,7 +22,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install Dependencies
       run: |
-        uv sync --dev
+        uv sync --extra dev
     - name: Run Lint
       run: |
         make lint
