@@ -38,12 +38,12 @@ def test_consecutive_sim_splitter():
     # Verify the splits
     print(splits)
     assert len(splits) == 3, "Expected three sets of chunks"
-    assert splits[0][0].splits == [
-        "doc1 about something"
-    ], "First split does not match expected documents"
-    assert splits[2][0].splits == [
-        "doc3 about something"
-    ], "Second split does not match expected documents"
+    assert splits[0][0].splits == ["doc1 about something"], (
+        "First split does not match expected documents"
+    )
+    assert splits[2][0].splits == ["doc3 about something"], (
+        "Second split does not match expected documents"
+    )
 
 
 @pytest.mark.asyncio
@@ -73,12 +73,12 @@ async def test_async_consecutive_sim_splitter():
     # Verify the splits
     print(splits)
     assert len(splits) == 3, "Expected three sets of chunks"
-    assert splits[0][0].splits == [
-        "doc1 about something"
-    ], "First split does not match expected documents"
-    assert splits[2][0].splits == [
-        "doc3 about something"
-    ], "Second split does not match expected documents"
+    assert splits[0][0].splits == ["doc1 about something"], (
+        "First split does not match expected documents"
+    )
+    assert splits[2][0].splits == ["doc3 about something"], (
+        "Second split does not match expected documents"
+    )
 
 
 def test_cumulative_sim_splitter():
@@ -199,12 +199,12 @@ def test_statistical_chunker():
     # Verify the splits
     print(splits)
     assert len(splits) == 3, "Expected three sets of chunks"
-    assert splits[0][0].splits == [
-        "doc1 about something"
-    ], "First split does not match expected documents"
-    assert splits[2][0].splits == [
-        "doc3 about something"
-    ], "Second split does not match expected documents"
+    assert splits[0][0].splits == ["doc1 about something"], (
+        "First split does not match expected documents"
+    )
+    assert splits[2][0].splits == ["doc3 about something"], (
+        "Second split does not match expected documents"
+    )
 
 
 @pytest.mark.asyncio
@@ -230,12 +230,12 @@ async def test_async_statistical_chunker():
     # Verify the splits
     print(splits)
     assert len(splits) == 3, "Expected three sets of chunks"
-    assert splits[0][0].splits == [
-        "doc1 about something"
-    ], "First split does not match expected documents"
-    assert splits[2][0].splits == [
-        "doc3 about something"
-    ], "Second split does not match expected documents"
+    assert splits[0][0].splits == ["doc1 about something"], (
+        "First split does not match expected documents"
+    )
+    assert splits[2][0].splits == ["doc3 about something"], (
+        "Second split does not match expected documents"
+    )
 
 
 @pytest.fixture

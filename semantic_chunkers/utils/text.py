@@ -43,11 +43,11 @@ def async_retry_with_timeout(retries=3, timeout=10):
                     return await asyncio.wait_for(func(*args, **kwargs), timeout)
                 except asyncio.TimeoutError:
                     logger.warning(
-                        f"Timeout on attempt {attempt+1} for {func.__name__}"
+                        f"Timeout on attempt {attempt + 1} for {func.__name__}"
                     )
                 except Exception as e:
                     logger.error(
-                        f"Exception on attempt {attempt+1} for {func.__name__}: {e}"
+                        f"Exception on attempt {attempt + 1} for {func.__name__}: {e}"
                     )
                     if attempt == retries - 1:
                         raise

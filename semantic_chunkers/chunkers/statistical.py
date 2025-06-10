@@ -541,8 +541,9 @@ class StatisticalChunker(BaseChunker):
             token_counts = [
                 split.token_count for split in chunks if split.token_count is not None
             ]
-            min_token_size, max_token_size = min(token_counts, default=0), max(
-                token_counts, default=0
+            min_token_size, max_token_size = (
+                min(token_counts, default=0),
+                max(token_counts, default=0),
             )
 
         self.statistics = ChunkStatistics(
@@ -605,7 +606,7 @@ class StatisticalChunker(BaseChunker):
         axs[0].set_xlabel("Document Segment Index")
         axs[0].set_ylabel("Similarity Score")
         axs[0].set_title(
-            f"Threshold: {calculated_threshold} |" f" Window Size: {self.window_size}",
+            f"Threshold: {calculated_threshold} | Window Size: {self.window_size}",
             loc="right",
             fontsize=10,
         )

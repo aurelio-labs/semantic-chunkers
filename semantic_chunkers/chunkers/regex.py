@@ -33,6 +33,8 @@ class RegexChunker(BaseChunker):
             sentences = self.splitter(doc, delimiters=self.delimiters)
             for sentence in sentences:
                 sentence_token_count = text.tiktoken_length(sentence)
+                if current_chunk.token_count is None:
+                    raise ValueError("current_chunk.token_count is None, expected int")
                 if (
                     current_chunk.token_count + sentence_token_count
                     > self.max_chunk_tokens

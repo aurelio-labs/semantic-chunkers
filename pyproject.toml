@@ -1,51 +1,53 @@
-[tool.poetry]
-name = "semantic-chunkers"
-version = "0.1.0.dev1"
-description = "Super advanced chunking methods for AI"
-authors = ["Aurelio AI <hello@aurelio.ai>"]
-readme = "README.md"
-packages = [{include = "semantic_chunkers"}]
-
 [project]
+name = "semantic-chunkers"
+version = "0.1.0"
+description = "Super advanced chunking methods for AI"
+authors = [{name = "Aurelio AI", email = "hello@aurelio.ai"}]
+readme = "README.md"
 license = {file = "LICENSE"}
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "pydantic>=2.5.3",
+    "numpy>=1.26.0",
+    "colorlog>=6.8.0",
+    "colorama>=0.4.6",
+    "regex>=2023.12.25",
+    "tiktoken>=0.7.0,<1.0.0",
+    "semantic-router>=0.1.0",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.13"
-pydantic = "^2.5.3"
-numpy = "^1.26.0"
-colorlog = "^6.8.0"
-colorama = "^0.4.6"
-regex = "^2023.12.25"
-tiktoken = ">=0.7.0,<1.0.0"
-matplotlib = { version = "^3.8.3", optional = true}
-requests-mock = "^1.12.1"
-semantic-router = ">=0.1.0.dev2"
-
-[tool.poetry.extras]
-stats = ["matplotlib"]
-
-[tool.poetry.group.dev.dependencies]
-ipykernel = "^6.25.0"
-ruff = "^0.1.5"
-pytest = "^7.4.3"
-pytest-mock = "^3.12.0"
-pytest-cov = "^4.1.0"
-pytest-xdist = "^3.5.0"
-pytest-asyncio = "^0.23.7"
-mypy = "^1.7.1"
-types-pyyaml = "^6.0.12.12"
-types-requests = "^2.31.0"
-black = {extras = ["jupyter"], version = ">=23.12.1,<24.5.0"}
+[project.optional-dependencies]
+stats = ["matplotlib>=3.8.3"]
+dev = [
+    "ipykernel>=6.25.0,<7",
+    "ruff>=0.11.2,<0.12",
+    "pytest~=8.2",
+    "pytest-mock>=3.12.0,<4",
+    "pytest-cov>=4.1.0,<5",
+    "pytest-xdist>=3.5.0,<4",
+    "pytest-asyncio>=0.24.0,<0.25",
+    "mypy>=1.7.1,<2",
+    "types-pyyaml>=6.0.12.12,<7",
+    "requests-mock>=1.12.1,<2",
+    "types-requests>=2.31.0,<3",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.ruff.per-file-ignores]
+[tool.hatch.build.targets.wheel]
+packages = ["semantic_chunkers"]
+
+[tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["ALL"]
 
 [tool.ruff]
 line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "T201", "NPY201"]
+ignore = ["E501", "T201"]
 
 [tool.mypy]
 ignore_missing_imports = true
