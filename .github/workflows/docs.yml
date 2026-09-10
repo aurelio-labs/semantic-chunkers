@@ -1,0 +1,63 @@
+name: Release Docs
+
+# Publishes the guide docs in docs/ to the aurelio-labs/docs content repo,
+# which the docs site (docs.aurelio.ai) is built from. Mirrors the pattern
+# used by semantic-router. Requires a PAT secret with write access to
+# aurelio-labs/docs.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+jobs:
+  publish-docs:
+    name: Publish Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout docs repo
+        uses: actions/checkout@v4
+        with:
+          repository: aurelio-labs/docs
+          path: temp-docs
+          ref: main
+          token: ${{ secrets.PAT }}
+
+      - name: Copy guide docs
+        run: |
+          ROOT_DIR=$(pwd)
+
+          # this repo is the source of truth for its section of the docs site
+          rm -rf temp-docs/semantic-chunkers
+          mkdir -p temp-docs/semantic-chunkers
+
+          DOC_DIRS=("get-started" "user-guide")
+          for doc_dir in "${DOC_DIRS[@]}"; do
+            [ -d "docs/$doc_dir" ] || continue
+            find "docs/$doc_dir" -type f -name "*.md" | while read file; do
+              rel_path=$(realpath --relative-to="docs/$doc_dir" "$(dirname "$file")")
+              file_name=$(basename "$file")
+              if [ "$rel_path" = "." ]; then
+                target_dir="$ROOT_DIR/temp-docs/semantic-chunkers/$doc_dir"
+              else
+                target_dir="$ROOT_DIR/temp-docs/semantic-chunkers/$doc_dir/$rel_path"
+              fi
+              mkdir -p "$target_dir"
+              cp "$file" "$target_dir/${file_name%.md}.mdx"
+              echo "Copied $file -> $target_dir/${file_name%.md}.mdx"
+            done
+          done
+
+      - name: Commit and push
+        working-directory: temp-docs
+        run: |
+          git config --local user.email "admin@aurelio.ai"
+          git config --local user.name "aurelio-bot"
+          git remote set-url origin https://aurelio-bot:${{ secrets.PAT }}@github.com/aurelio-labs/docs.git
+          git add .
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update semantic chunkers docs" && git push)
