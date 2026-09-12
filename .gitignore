@@ -30,3 +30,5 @@ test.ipynb
 ```
 benchmarks/.cache/
 benchmarks/results.json
+benchmarks/report.html
+benchmarks/history.jsonl

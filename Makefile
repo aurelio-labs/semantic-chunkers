@@ -19,5 +19,12 @@ test_unit:
 	uv run pytest -vv --exitfirst --maxfail=1 tests/unit
 test_integration:
 	uv run pytest -vv --exitfirst --maxfail=1 tests/integration
+# The report is rendered even when a variant failed, then the runner's exit
+# code is preserved so CI still sees the failure.
 bench:
-	uv run python -m benchmarks.run
+	uv run python -m benchmarks.run; status=$$?; \
+	uv run python -m benchmarks.report; \
+	exit $$status
+
+bench_report:
+	uv run python -m benchmarks.report --no-append

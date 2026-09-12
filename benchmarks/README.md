@@ -1,6 +1,16 @@
 # Benchmarks
 
-`make bench` runs every variant in `experiments/default.json` on every suite and writes `benchmarks/results.json` in the [visionary results contract](https://github.com/jamescalam/visionary/blob/main/plugin/skills/experiment/results-schema.md). The bench workflow runs it on each pull request and on the merge base and comments the delta.
+`make bench` runs every variant in `experiments/default.json` on every suite, writes `benchmarks/results.json` in the [visionary results contract](https://github.com/jamescalam/visionary/blob/main/plugin/skills/experiment/results-schema.md), and renders `benchmarks/report.html`. The bench workflow runs it on each pull request and on the merge base and comments the delta.
+
+## Reading the results
+
+Open `benchmarks/report.html`. It is one self-contained file — inline SVG, no JavaScript, no external assets, light and dark — with the headline F1, quality and cost charts, a boundary-F1 trend across past runs, and a table holding every number the charts show. Every value in a chart is also in that table, so nothing is reachable only by hovering.
+
+`make bench_report` re-renders the report from an existing `results.json` without re-running the suite or recording a run.
+
+**History.** Each `make bench` appends its run to `benchmarks/history.jsonl`, one JSON object per run keyed by commit; re-running the same commit replaces its row. The trend chart plots the last twelve. The file is git-ignored, so history is per-checkout: it accumulates locally and starts empty on a fresh CI runner. Point `--history` at a shared path to collect runs somewhere durable.
+
+**Percentiles.** The per-document metrics carry a distribution as well as a mean, because a variant with a good average can still segment one document in twenty very badly. `pk`, `windowdiff` and per-document latency report `_p50` and `_p95`, where p95 is the bad tail. Boundary F1 is higher-is-better, so its bad tail is the low end: it reports `_p05`, `_p50` and `_p95`. `wall_s` stays the whole-suite total; `doc_s_p50` and `doc_s_p95` are per document.
 
 ## Suites
 
