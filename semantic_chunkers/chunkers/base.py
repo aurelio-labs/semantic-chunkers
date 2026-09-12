@@ -1,7 +1,7 @@
 from typing import Any, List, Optional
 
 from colorama import Fore, Style
-from pydantic.v1 import BaseModel, Extra, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from semantic_router.encoders.base import DenseEncoder
 
 from semantic_chunkers.schema import Chunk
@@ -9,15 +9,14 @@ from semantic_chunkers.splitters.base import BaseSplitter
 
 
 class BaseChunker(BaseModel):
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
     name: str
-    encoder: Optional[DenseEncoder]
+    encoder: Optional[DenseEncoder] = Field(default=None, validate_default=True)
     splitter: BaseSplitter
 
-    class Config:
-        extra = Extra.allow
-        arbitrary_types_allowed = True
-
-    @validator("encoder", pre=True, always=True)
+    @field_validator("encoder", mode="before")
+    @classmethod
     def set_encoder(cls, v):
         if v is None:
             return DenseEncoder(name="default")
