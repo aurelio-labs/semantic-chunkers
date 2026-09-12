@@ -5,6 +5,11 @@ checks:
   lint: make lint
   test: make test
 
+bench:
+  command: make bench
+  results: benchmarks/results.json
+  experiments: benchmarks/experiments
+
 review:
   max_open_agent_prs: 3
 

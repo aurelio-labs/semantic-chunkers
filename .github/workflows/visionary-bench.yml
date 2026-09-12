@@ -1,0 +1,27 @@
+name: Visionary bench
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: ["docs/**", "reports/**", "*.md"]
+
+concurrency:
+  group: visionary-bench-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  bench:
+    uses: jamescalam/visionary/.github/workflows/bench.yml@main
+    with:
+      command: make bench
+      results: benchmarks/results.json
+      setup: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        export PATH="$HOME/.local/bin:$PATH"
+        uv sync --extra dev --extra bench

@@ -19,3 +19,5 @@ test_unit:
 	uv run pytest -vv --exitfirst --maxfail=1 tests/unit
 test_integration:
 	uv run pytest -vv --exitfirst --maxfail=1 tests/integration
+bench:
+	uv run python -m benchmarks.run

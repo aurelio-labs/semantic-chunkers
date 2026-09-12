@@ -1,0 +1,12 @@
+{
+  "suites": [
+    {"name": "synthetic-boundaries", "n_docs": 30, "min_sources": 3, "max_sources": 6, "seed": 0, "tolerance": 1}
+  ],
+  "variants": [
+    {"name": "statistical/minilm/default", "chunker": "statistical", "params": {"window_size": 5, "min_split_tokens": 100, "max_split_tokens": 300}, "encoder": {"name": "all-MiniLM-L6-v2"}},
+    {"name": "statistical/minilm/w2-small", "chunker": "statistical", "params": {"window_size": 2, "min_split_tokens": 30, "max_split_tokens": 300}, "encoder": {"name": "all-MiniLM-L6-v2"}},
+    {"name": "consecutive/minilm/t0.45", "chunker": "consecutive", "params": {"score_threshold": 0.45}, "encoder": {"name": "all-MiniLM-L6-v2"}},
+    {"name": "cumulative/minilm/t0.45", "chunker": "cumulative", "params": {"score_threshold": 0.45}, "encoder": {"name": "all-MiniLM-L6-v2"}},
+    {"name": "regex/300", "chunker": "regex", "params": {"max_chunk_tokens": 300}}
+  ]
+}
