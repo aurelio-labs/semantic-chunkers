@@ -1,6 +1,8 @@
+import json
+
 import pytest
 
-from benchmarks import synthetic
+from benchmarks import run, synthetic
 from benchmarks.run import predicted_boundaries
 from semantic_chunkers.schema import Chunk
 
@@ -43,3 +45,42 @@ def test_predicted_boundaries_raises_when_a_chunk_cannot_be_placed():
     chunks = [Chunk(splits=["a."]), Chunk(splits=["zzz."])]
     with pytest.raises(ValueError, match="matches no remaining sentence"):
         predicted_boundaries(chunks, sentences)
+
+
+def test_main_records_a_failed_variant_and_still_writes_the_table(tmp_path):
+    """A variant that raises must not cost the whole table.
+
+    Both variants use the regex chunker, which needs no encoder, so this runs
+    with no model. The first is given a parameter the chunker rejects.
+    """
+    config = tmp_path / "config.json"
+    config.write_text(
+        json.dumps(
+            {
+                "suites": [{"name": "synthetic-boundaries", "n_docs": 2, "seed": 0}],
+                "variants": [
+                    {
+                        "name": "broken",
+                        "chunker": "regex",
+                        "params": {"no_such_param": 1},
+                    },
+                    {
+                        "name": "ok",
+                        "chunker": "regex",
+                        "params": {"max_chunk_tokens": 300},
+                    },
+                ],
+            }
+        )
+    )
+    out = tmp_path / "results.json"
+    assert run.main([str(config), "--out", str(out)]) == 1
+
+    payload = json.loads(out.read_text())
+    broken, ok = payload["suites"]
+    assert broken["variant"] == "broken"
+    assert broken["error"]
+    assert broken["metrics"] == {}
+    assert ok["variant"] == "ok"
+    assert "error" not in ok
+    assert ok["metrics"]["boundary_f1"] >= 0

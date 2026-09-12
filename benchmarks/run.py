@@ -192,19 +192,23 @@ def main(argv: list[str] | None = None) -> int:
         runner = SUITES[suite["name"]]
         for variant in config["variants"]:
             print(f"{suite['name']} :: {variant['name']}", file=sys.stderr)
-            m = runner(variant, suite)
-            results.append(
-                {
-                    "name": suite["name"],
-                    "variant": variant["name"],
-                    "config": {
-                        **{k: v for k, v in variant.items() if k != "name"},
-                        "suite": {k: v for k, v in suite.items() if k != "name"},
-                    },
-                    "metrics": m,
-                }
-            )
-            print(json.dumps(m), file=sys.stderr)
+            entry: dict[str, Any] = {
+                "name": suite["name"],
+                "variant": variant["name"],
+                "config": {
+                    **{k: v for k, v in variant.items() if k != "name"},
+                    "suite": {k: v for k, v in suite.items() if k != "name"},
+                },
+                "metrics": {},
+            }
+            try:
+                entry["metrics"] = runner(variant, suite)
+                print(json.dumps(entry["metrics"]), file=sys.stderr)
+            except Exception as exc:  # one broken variant must not lose the table
+                entry["error"] = f"{type(exc).__name__}: {exc}"
+                failures.append(variant["name"])
+                print(f"ERROR {variant['name']}: {entry['error']}", file=sys.stderr)
+            results.append(entry)
 
     payload = {
         "schema": 1,
