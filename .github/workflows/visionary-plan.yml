@@ -1,0 +1,26 @@
+name: Visionary plan
+
+on:
+  push:
+    branches: [main]
+    paths: [VISION.md]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why the planner is running
+        type: choice
+        options: [manual, vision-changed, tranche-closed]
+        default: manual
+
+jobs:
+  plan:
+    uses: jamescalam/visionary/.github/workflows/plan.yml@main
+    with:
+      reason: ${{ github.event_name == 'push' && 'vision-changed' || inputs.reason }}
+      setup: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        export PATH="$HOME/.local/bin:$PATH"
+        uv sync --extra dev
+    secrets:
+      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
