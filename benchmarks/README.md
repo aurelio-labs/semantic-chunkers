@@ -4,13 +4,13 @@
 
 ## Suites
 
-**synthetic-boundaries.** Concatenate the introductions of three to six unrelated Wikipedia articles and record the seams. The chunker sees the concatenated text; the gold boundaries are the sentence indices where a new article begins. Metrics: boundary precision, recall, and F1 with a one-sentence tolerance; Pk and WindowDiff (lower is better); `wall_s`, the chunker's own work measured after every sentence has been embedded once, so the cache is equally warm for every variant; `encoder_requests` and `encoder_texts_requested`, what a user would pay, cache or not; `encoder_model_calls` and `encoder_model_texts`, cache misses only, and note the cache also dedupes sentences repeated across documents, so `encoder_seconds` is unique-text cost rather than user cost; chunks per document and, for chunkers that record it, mean chunk tokens.
+**synthetic-boundaries.** Concatenate the introductions of three to six unrelated Wikipedia articles and record the seams. The chunker sees the concatenated text; the gold boundaries are the sentence indices where a new article begins. Metrics: boundary precision, recall, and F1 with a one-sentence tolerance; Pk and WindowDiff (lower is better); `wall_s`, the variant's full cost including embedding, measured in the variant's own cache namespace so no variant benefits from another's embeddings and order does not matter (cold on CI, where deltas are computed; warm on a repeat local run of the same variant); `encoder_requests` and `encoder_texts_requested`, what a user would pay, cache or not; `encoder_model_calls` and `encoder_model_texts`, cache misses only, and note the cache also dedupes sentences repeated across documents, so `encoder_seconds` is unique-text cost rather than user cost; chunks per document and, for chunkers that record it, mean chunk tokens.
 
 Planned: section boundaries from Wikipedia-derived segmentation sets, and retrieval recall over answer spans.
 
 ## Encoders
 
-`all-MiniLM-L6-v2` through sentence-transformers on CPU, wrapped as a semantic-router `DenseEncoder` with a SQLite embedding cache in `benchmarks/.cache/`. After the first run a parameter sweep costs no encoder calls.
+`all-MiniLM-L6-v2` through sentence-transformers on CPU, wrapped as a semantic-router `DenseEncoder` with a SQLite embedding cache in `benchmarks/.cache/`. The cache is namespaced by variant, so a repeat run of an unchanged variant is free while a new variant pays its own way. Delete `benchmarks/.cache/` for a fully cold run. A variant that raises is recorded with an `error` field, the rest of the table is still written, and the command exits non-zero.
 
 ## Running one experiment
 

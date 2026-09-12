@@ -28,7 +28,7 @@ DIRECTIONS = {
     "boundary_recall": "up",
     "pk": "down",
     "windowdiff": "down",
-    "wall_s": "down",  # chunker work with a warm embedding cache; see README
+    "wall_s": "down",  # full variant cost incl. embedding, in its own cache namespace
     "encoder_requests": "down",
     "encoder_texts_requested": "down",
     "encoder_model_calls": None,
@@ -51,15 +51,21 @@ def git_sha() -> str:
         return "unknown"
 
 
-_ENCODERS: dict[str, CachedSentenceTransformerEncoder] = {}
+_MODELS: dict[str, Any] = {}
 
 
-def make_encoder(spec: dict[str, Any]) -> CachedSentenceTransformerEncoder:
-    """One encoder per model name for the whole run, so the model loads once."""
+def make_encoder(
+    spec: dict[str, Any], namespace: str
+) -> CachedSentenceTransformerEncoder:
+    """One encoder per variant, sharing one loaded model per model name."""
     name = spec.get("name", "all-MiniLM-L6-v2")
-    if name not in _ENCODERS:
-        _ENCODERS[name] = CachedSentenceTransformerEncoder(name=name)
-    return _ENCODERS[name]
+    encoder = CachedSentenceTransformerEncoder(name=name, namespace=namespace)
+    if name in _MODELS:
+        encoder._model = _MODELS[name]
+    else:
+        encoder.warm_up()
+        _MODELS[name] = encoder._model
+    return encoder
 
 
 def uses_encoder(variant: dict[str, Any]) -> bool:
@@ -123,19 +129,16 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
         seed=suite.get("seed", 0),
     )
     encoder = (
-        make_encoder(variant.get("encoder", {})) if uses_encoder(variant) else None
+        make_encoder(variant.get("encoder", {}), namespace=variant["name"])
+        if uses_encoder(variant)
+        else None
     )
     chunker = make_chunker(variant, encoder)
     if encoder is not None:
-        # Warm the model and the cache with every sentence before timing, so
-        # wall_s measures the chunker's own work with a warm cache for every
-        # variant alike. Encoder cost is reported separately by the counters.
-        encoder.warm_up()
-        encoder([s for doc in docs for s in doc.sentences])
         encoder.reset_counters()
     pks, wds, ps, rs, f1s = [], [], [], [], []
     n_chunks = 0
-    chunk_tokens: list[int] = []
+    chunk_tokens: list[int | None] = []
     t0 = time.perf_counter()
     for doc in docs:
         result = chunker([doc.text])
@@ -184,6 +187,7 @@ def main(argv: list[str] | None = None) -> int:
     config = json.loads(Path(args.config).read_text())
 
     results: list[dict[str, Any]] = []
+    failures: list[str] = []
     for suite in config["suites"]:
         runner = SUITES[suite["name"]]
         for variant in config["variants"]:
@@ -211,6 +215,11 @@ def main(argv: list[str] | None = None) -> int:
     }
     Path(args.out).write_text(json.dumps(payload, indent=1) + "\n")
     print(f"wrote {args.out}", file=sys.stderr)
+    if failures:
+        print(
+            f"{len(failures)} variant(s) failed: {', '.join(failures)}", file=sys.stderr
+        )
+        return 1
     return 0
 
 

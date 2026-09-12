@@ -1,8 +1,10 @@
 """Encoders for the benchmark, with an on-disk embedding cache and a call
 counter so cost can be reported alongside quality.
 
-The cache is keyed on (model name, text). After the first run, sweeping
-chunker parameters costs no encoder calls at all.
+The cache is keyed on (model name, namespace, text). The runner namespaces
+by variant, so within one run every variant pays its own embedding cost and
+the order of variants cannot change a number; across runs, an unchanged
+variant is served from the cache.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ class CachedSentenceTransformerEncoder(DenseEncoder):
     name: str = "all-MiniLM-L6-v2"
     score_threshold: float = 0.5
     type: str = "sentence-transformers"
+    namespace: str = ""
 
     _model: Any = None
     _conn: Optional[sqlite3.Connection] = None
@@ -40,9 +43,14 @@ class CachedSentenceTransformerEncoder(DenseEncoder):
     requested_texts: int = 0
 
     def __init__(
-        self, name: str = "all-MiniLM-L6-v2", cache_dir: Path = CACHE_DIR, **kwargs
+        self,
+        name: str = "all-MiniLM-L6-v2",
+        cache_dir: Path = CACHE_DIR,
+        namespace: str = "",
+        **kwargs,
     ):
         super().__init__(name=name, **kwargs)
+        self.namespace = namespace
         cache_dir.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(cache_dir / "embeddings.sqlite")
         self._conn.execute(
@@ -57,7 +65,9 @@ class CachedSentenceTransformerEncoder(DenseEncoder):
         return self._model
 
     def _key(self, text: str) -> str:
-        return hashlib.sha256(f"{self.name}\x00{text}".encode()).hexdigest()
+        return hashlib.sha256(
+            f"{self.name}\x00{self.namespace}\x00{text}".encode()
+        ).hexdigest()
 
     def __call__(self, docs: List[str]) -> List[List[float]]:
         assert self._conn is not None
