@@ -2,18 +2,25 @@ name: Visionary respond
 
 # The responder listens to every human comment on a PR or issue an agent
 # opened, and to any comment that mentions //vision anywhere else.
+#
 # The phrase is deliberately not an @-mention: GitHub links every @name to a
 # real user, so it would notify a stranger, and @claude collides with the
-# Claude GitHub App's own mention handling. //vision pings nobody. Reviews
-# with inline comments arrive as one pull_request_review event; single
-# inline comments also produce one, so pull_request_review_comment is not
-# needed and would only cause duplicate runs.
+# Claude GitHub App's own mention handling. //vision pings nobody.
+#
+# Three events are needed. A conversation comment is issue_comment. A single
+# inline comment on the diff is pull_request_review_comment, and it wraps
+# itself in a review whose body is empty, so pull_request_review alone misses
+# it. A review submitted with a written summary is pull_request_review. A
+# review that carries both fires twice; the concurrency group below queues
+# them and the responder skips threads it has already answered.
 
 on:
   issue_comment:
     types: [created]
   pull_request_review:
     types: [submitted]
+  pull_request_review_comment:
+    types: [created]
 
 permissions:
   contents: write
@@ -21,6 +28,10 @@ permissions:
   issues: write
   id-token: write
   actions: read
+
+concurrency:
+  group: visionary-respond-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
 
 jobs:
   respond:
@@ -30,14 +41,17 @@ jobs:
       (
         (github.event_name == 'issue_comment' &&
           (github.event.issue.user.login == 'claude[bot]' || contains(github.event.comment.body, '//vision'))) ||
-        (github.event_name == 'pull_request_review' &&
-          (github.event.pull_request.user.login == 'claude[bot]' || contains(github.event.review.body, '//vision')))
+        (github.event_name == 'pull_request_review' && github.event.review.body != '' &&
+          (github.event.pull_request.user.login == 'claude[bot]' || contains(github.event.review.body, '//vision'))) ||
+        (github.event_name == 'pull_request_review_comment' &&
+          (github.event.pull_request.user.login == 'claude[bot]' || contains(github.event.comment.body, '//vision')))
       )
     uses: jamescalam/visionary/.github/workflows/respond.yml@main
     with:
-      kind: ${{ (github.event_name == 'pull_request_review' || github.event.issue.pull_request) && 'pr' || 'issue' }}
+      kind: ${{ (github.event_name != 'issue_comment' || github.event.issue.pull_request) && 'pr' || 'issue' }}
       number: ${{ github.event.pull_request.number || github.event.issue.number }}
-      trigger_id: ${{ github.event.review.id || github.event.comment.id }}
+      trigger_id: ${{ github.event_name == 'pull_request_review' && github.event.review.id || github.event.comment.id }}
+      trigger_kind: ${{ github.event_name == 'pull_request_review' && 'review' || (github.event_name == 'pull_request_review_comment' && 'inline' || 'comment') }}
       head_ref: ${{ github.event.pull_request.head.ref || '' }}
       setup: |
         curl -LsSf https://astral.sh/uv/install.sh | sh
