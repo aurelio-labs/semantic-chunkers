@@ -4,6 +4,24 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
 
 ## Unreleased
 
+### Breaking
+- `Chunk`, `BaseChunker`, and `BaseSplitter` are native pydantic v2 models instead of `pydantic.v1` shim models. Nesting them inside a `pydantic.v1` model no longer validates, and subclasses that declared a `class Config` should switch to `model_config`.
+
+  ```python
+  # before
+  from pydantic.v1 import BaseModel
+  from semantic_chunkers import Chunk
+
+  class Result(BaseModel):
+      chunk: Chunk
+
+  # after
+  from pydantic import BaseModel
+  from semantic_chunkers import Chunk
+
+  class Result(BaseModel):
+      chunk: Chunk
+  ```
+
 ### Changed
-- `Chunk`, `BaseChunker`, and `BaseSplitter` are now native pydantic v2 models instead of using the `pydantic.v1` compatibility shim. Subclasses that declared a `class Config` should use `model_config = ConfigDict(...)`.
 - `semantic_chunkers.__version__` is read from the installed package metadata instead of a hard-coded string that had drifted from `pyproject.toml`.

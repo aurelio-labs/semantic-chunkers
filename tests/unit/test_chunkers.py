@@ -10,6 +10,7 @@ from semantic_chunkers import (
     BaseSplitter,
     ConsecutiveChunker,
     CumulativeChunker,
+    RegexSplitter,
     StatisticalChunker,
 )
 
@@ -255,3 +256,15 @@ def base_splitter_instance():
 def test_base_splitter_call_not_implemented(base_splitter_instance):
     with pytest.raises(NotImplementedError):
         base_splitter_instance(["document"])
+
+
+def test_base_chunker_substitutes_default_encoder_when_omitted():
+    chunker = BaseChunker(name="t", splitter=RegexSplitter())
+    assert chunker.encoder is not None
+    assert chunker.encoder.name == "default"
+
+
+def test_regex_splitter_accepts_custom_pattern():
+    splitter = RegexSplitter(regex_pattern=r"\|")
+    assert splitter.regex_pattern == r"\|"
+    assert splitter("a|b|c") == ["a", "b", "c"]
