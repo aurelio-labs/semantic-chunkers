@@ -4,6 +4,13 @@ on:
   issues:
     types: [labeled]
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
 jobs:
   implement:
     if: github.event.label.name == 'approved'

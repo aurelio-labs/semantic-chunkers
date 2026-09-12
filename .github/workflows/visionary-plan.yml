@@ -12,6 +12,13 @@ on:
         options: [manual, vision-changed, tranche-closed]
         default: manual
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
 jobs:
   plan:
     uses: jamescalam/visionary/.github/workflows/plan.yml@main

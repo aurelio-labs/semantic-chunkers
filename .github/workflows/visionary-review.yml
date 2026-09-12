@@ -8,6 +8,13 @@ concurrency:
   group: visionary-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
 jobs:
   review:
     uses: jamescalam/visionary/.github/workflows/review.yml@main
