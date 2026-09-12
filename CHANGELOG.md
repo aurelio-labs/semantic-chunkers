@@ -10,14 +10,14 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
   ```python
   # before
   from pydantic.v1 import BaseModel
-  from semantic_chunkers import Chunk
+  from semantic_chunkers.schema import Chunk
 
   class Result(BaseModel):
       chunk: Chunk
 
   # after
   from pydantic import BaseModel
-  from semantic_chunkers import Chunk
+  from semantic_chunkers.schema import Chunk
 
   class Result(BaseModel):
       chunk: Chunk
