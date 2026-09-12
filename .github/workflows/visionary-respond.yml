@@ -1,11 +1,10 @@
 name: Visionary respond
 
 # The responder listens to every human comment on a PR or issue an agent
-# opened, and to any comment that mentions @aurelio-bot anywhere else.
-# Change the mention phrase to a bot account you own: GitHub links every
-# @name in a comment to that user, so a made-up phrase would notify a
-# stranger, and @claude would collide with the Claude GitHub App's own
-# mention handling. Reviews
+# opened, and to any comment that mentions //vision anywhere else.
+# The phrase is deliberately not an @-mention: GitHub links every @name to a
+# real user, so it would notify a stranger, and @claude collides with the
+# Claude GitHub App's own mention handling. //vision pings nobody. Reviews
 # with inline comments arrive as one pull_request_review event; single
 # inline comments also produce one, so pull_request_review_comment is not
 # needed and would only cause duplicate runs.
@@ -30,9 +29,9 @@ jobs:
       github.event.sender.login != 'github-actions[bot]' &&
       (
         (github.event_name == 'issue_comment' &&
-          (github.event.issue.user.login == 'claude[bot]' || contains(github.event.comment.body, '@aurelio-bot'))) ||
+          (github.event.issue.user.login == 'claude[bot]' || contains(github.event.comment.body, '//vision'))) ||
         (github.event_name == 'pull_request_review' &&
-          (github.event.pull_request.user.login == 'claude[bot]' || contains(github.event.review.body, '@aurelio-bot')))
+          (github.event.pull_request.user.login == 'claude[bot]' || contains(github.event.review.body, '//vision')))
       )
     uses: jamescalam/visionary/.github/workflows/respond.yml@main
     with:
