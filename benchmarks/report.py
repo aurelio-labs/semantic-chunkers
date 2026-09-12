@@ -21,7 +21,7 @@ import json
 import math
 import sys
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 ROOT = Path(__file__).parent
 DEFAULT_RESULTS = ROOT / "results.json"
@@ -119,10 +119,17 @@ def _rounded_bar(x: float, y: float, width: float, height: float) -> str:
     )
 
 
+def _known(values: Iterable[float | None]) -> list[float]:
+    """The measured values, dropping the ``None``s that mean "not measured"."""
+    return [v for v in values if v is not None]
+
+
 class Series:
-    def __init__(self, name: str, values: Sequence[float], slot: int) -> None:
+    """A named row of values. ``None`` is "not measured", never zero."""
+
+    def __init__(self, name: str, values: Sequence[float | None], slot: int) -> None:
         self.name = name
-        self.values = list(values)
+        self.values: list[float | None] = list(values)
         self.slot = slot
 
 
@@ -134,20 +141,21 @@ def hbar_chart(
     scale_max: float | None = None,
     better: str = "up",
     label_values: str = "all",
-    ranges: Sequence[tuple[float, float]] | None = None,
-    markers: Sequence[float] | None = None,
+    ranges: Sequence[tuple[float | None, float | None]] | None = None,
+    markers: Sequence[float | None] | None = None,
     marker_slot: int = 2,
 ) -> str:
     """A horizontal bar chart.
 
     ``ranges`` draws a tone-on-tone spread line per row on top of the first
     series' bar; ``markers`` draws a tick per row in ``marker_slot``'s colour.
+    A ``None`` value is not measured: it draws an em dash, not a zero bar.
     """
-    highs = [max(s.values, default=0.0) for s in series]
+    highs = [max(_known(s.values), default=0.0) for s in series]
     if ranges:
-        highs.append(max(hi for _, hi in ranges))
+        highs.append(max(_known(hi for _, hi in ranges), default=0.0))
     if markers:
-        highs.append(max(markers))
+        highs.append(max(_known(markers), default=0.0))
     top = scale_max if scale_max is not None else max(highs + [0.0])
     ticks = nice_ticks(top)
     top = max(ticks[-1], 1e-9)
@@ -181,8 +189,9 @@ def hbar_chart(
 
     best = {}
     for s in series:
-        if s.values:
-            best[s.name] = min(s.values) if better == "down" else max(s.values)
+        known = _known(s.values)
+        if known:
+            best[s.name] = min(known) if better == "down" else max(known)
 
     for row, label in enumerate(labels):
         y0 = row * row_h + 9
@@ -194,6 +203,16 @@ def hbar_chart(
         for i, s in enumerate(series):
             value = s.values[row]
             y = y0 + i * (bar_h + GAP)
+            if value is None:
+                # Not measured. An em dash, because a zero-length bar reads as
+                # a real zero and this is the same lie `run.py` refuses to tell.
+                parts.append(
+                    f'<text class="value" x="{LABEL_W + 6}" '
+                    f'y="{y + bar_h - 4:.1f}">—'
+                    f"<title>{esc(f'{label} — {s.name}: not measured')}</title>"
+                    f"</text>"
+                )
+                continue
             width = x_of(value) - LABEL_W
             title = f"{label} — {s.name}: {fmt(value)}"
             parts.append(
@@ -209,8 +228,8 @@ def hbar_chart(
                     f'<text class="value" x="{x_of(value) + 6:.1f}" '
                     f'y="{y + bar_h - 4:.1f}">{esc(fmt(value))}</text>'
                 )
-        if ranges:
-            lo, hi = ranges[row]
+        lo, hi = ranges[row] if ranges else (None, None)
+        if lo is not None and hi is not None:
             mid = y0 + bar_h / 2
             x1, x2 = x_of(lo), x_of(hi)
             parts.append(
@@ -223,16 +242,31 @@ def hbar_chart(
                 f"<title>{esc(f'{label} — p05 {fmt(lo)}, p95 {fmt(hi)}')}</title>"
                 f"</g>"
             )
-        if markers:
-            x = x_of(markers[row])
+        marker = markers[row] if markers else None
+        if marker is not None:
+            x = x_of(marker)
             parts.append(
                 f'<g class="marker" stroke="var(--series-{marker_slot})">'
                 f'<line x1="{x:.1f}" y1="{y0 - 3:.1f}" x2="{x:.1f}" '
                 f'y2="{y0 + bar_h + 3:.1f}"/>'
-                f"<title>{esc(f'{label} — p95 {fmt(markers[row])}')}</title></g>"
+                f"<title>{esc(f'{label} — p95 {fmt(marker)}')}</title></g>"
             )
     parts.append("</svg>")
     return "".join(parts)
+
+
+Point = tuple[int, float, float, float]  # run index, value, x, y
+
+
+def _stretches(points: Sequence[Point]) -> list[list[Point]]:
+    """Split points into runs that are consecutive on the x axis."""
+    out: list[list[Point]] = []
+    for point in points:
+        if out and point[0] == out[-1][-1][0] + 1:
+            out[-1].append(point)
+        else:
+            out.append([point])
+    return out
 
 
 def line_chart(
@@ -246,7 +280,7 @@ def line_chart(
     left, right_pad, top_pad = 44.0, 150.0, 12.0
     plot_h, height = 190.0, 190.0 + TICK_BAND + 12
     plot_w = CHART_W - left - right_pad
-    highs = [v for s in series for v in s.values] or [0.0]
+    highs = [v for s in series for v in _known(s.values)] or [0.0]
     top = scale_max if scale_max is not None else max(highs)
     ticks = nice_ticks(top)
     top = max(ticks[-1], 1e-9)
@@ -283,19 +317,26 @@ def line_chart(
 
     for s in series:
         colour = f"var(--series-{s.slot})"
-        points = [(x_of(i), y_of(v)) for i, v in enumerate(s.values) if v is not None]
-        if len(points) > 1:
-            d = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
-            parts.append(f'<polyline class="line" stroke="{colour}" points="{d}"/>')
-        for i, (x, y) in enumerate(points):
+        # Carry the run index with the point: a variant that did not exist in
+        # an earlier run is a gap, not a zero, so the position in this list is
+        # not the position on the x axis.
+        points = [
+            (i, v, x_of(i), y_of(v)) for i, v in enumerate(s.values) if v is not None
+        ]
+        # One polyline per unbroken stretch, so a gap is drawn as a gap.
+        for stretch in _stretches(points):
+            if len(stretch) > 1:
+                d = " ".join(f"{x:.1f},{y:.1f}" for _, _, x, y in stretch)
+                parts.append(f'<polyline class="line" stroke="{colour}" points="{d}"/>')
+        for i, value, x, y in points:
             parts.append(
                 f'<circle class="dot" cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{colour}"/>'
                 f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="12">'
-                f"<title>{esc(f'{s.name} @ {x_labels[i]}: {fmt(s.values[i])}')}"
+                f"<title>{esc(f'{s.name} @ {x_labels[i]}: {fmt(value)}')}"
                 f"</title></circle>"
             )
         if points:
-            x, y = points[-1]
+            x, y = points[-1][2], points[-1][3]
             parts.append(
                 f'<text class="endlabel" x="{x + 10:.1f}" y="{y + 4:.1f}">'
                 f"{esc(truncate(s.name, 22))}</text>"
@@ -476,17 +517,22 @@ def build_html(
     ok.sort(key=lambda e: e["metrics"].get("boundary_f1", 0), reverse=True)
     names = [e["variant"] for e in ok]
 
-    def col(key: str) -> list[float]:
-        return [float(e["metrics"].get(key, 0) or 0) for e in ok]
+    def col(key: str) -> list[float | None]:
+        """A metric across the scored variants. Absent means not measured."""
+        return [
+            None if e["metrics"].get(key) is None else float(e["metrics"][key])
+            for e in ok
+        ]
 
     body: list[str] = []
     if ok:
-        error_scale = max(col("pk_p95") + col("windowdiff_p95") + [0.0])
+        error_scale = max(_known(col("pk_p95") + col("windowdiff_p95")) + [0.0])
         top = ok[0]
+        best_f1 = top["metrics"].get("boundary_f1")
         body.append(
             '<section class="card">'
             '<p class="hero-label">Best boundary F1</p>'
-            f'<p class="hero">{esc(fmt_rate(top["metrics"].get("boundary_f1", 0)))}</p>'
+            f'<p class="hero">{esc("—" if best_f1 is None else fmt_rate(best_f1))}</p>'
             f'<p class="sub">{esc(top["variant"])} · '
             f"{esc(len(ok))} variants scored</p></section>"
         )
@@ -627,7 +673,7 @@ def trend_card(history: Sequence[dict[str, Any]], suite_name: str) -> str:
 
     series = []
     for slot, variant in enumerate(variants, start=1):
-        values = []
+        values: list[float | None] = []
         for run in runs:
             hit = next(
                 (
@@ -637,7 +683,11 @@ def trend_card(history: Sequence[dict[str, Any]], suite_name: str) -> str:
                 ),
                 None,
             )
-            values.append(float((hit or {}).get("metrics", {}).get("boundary_f1", 0.0)))
+            # A variant that did not exist in that run, or failed in it, is a
+            # gap. Charting it as 0.0 would draw a cliff up from zero every
+            # time a variant is added or renamed, which a sweep does often.
+            f1 = (hit or {}).get("metrics", {}).get("boundary_f1")
+            values.append(None if f1 is None else float(f1))
         series.append(Series(variant, values, slot))
 
     labels = [r.get("commit", "?") for r in runs]

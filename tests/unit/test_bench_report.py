@@ -1,4 +1,5 @@
 import json
+import re
 
 from benchmarks import report
 
@@ -153,6 +154,57 @@ def test_report_skips_failed_variants_in_charts_but_keeps_them_in_the_table(tmp_
     assert "Failed variants" in page
     assert "TypeError: no such param" in page
     assert "2 variants scored" in page
+
+
+def test_trend_chart_leaves_a_gap_for_a_variant_a_run_did_not_have(tmp_path):
+    """Adding or renaming a variant must not draw a cliff up from zero."""
+    history = [
+        {
+            "commit": "aaa",
+            "suites": [
+                {"name": "s", "variant": "alpha", "metrics": {"boundary_f1": 0.8}}
+            ],
+        },
+        {
+            "commit": "bbb",
+            "suites": [
+                {"name": "s", "variant": "alpha", "metrics": {"boundary_f1": 0.81}},
+                {"name": "s", "variant": "beta", "metrics": {"boundary_f1": 0.7}},
+            ],
+        },
+    ]
+    chart = report.trend_card(history, "s")
+    titles = re.findall(r"<title>(.*?)</title>", chart)
+    assert "beta @ bbb: 0.700" in titles
+    assert not [t for t in titles if t.startswith("beta @ aaa")]
+    # alpha spans both runs, beta only the second, so only alpha draws a line
+    assert chart.count("<polyline") == 1
+
+
+def test_charts_show_a_missing_metric_as_not_measured_rather_than_zero(tmp_path):
+    """A results.json from an older harness must not render a page of zeros."""
+    payload = _payload()
+    for entry in payload["suites"]:
+        for key in ("pk_p50", "pk_p95", "doc_s_p50", "encoder_texts_requested"):
+            del entry["metrics"][key]
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps(payload))
+    out = tmp_path / "report.html"
+    report.main(
+        [
+            "--results",
+            str(results),
+            "--out",
+            str(out),
+            "--history",
+            str(tmp_path / "h.jsonl"),
+        ]
+    )
+    titles = re.findall(r"<title>(.*?)</title>", out.read_text())
+    assert "alpha — Pk p50: not measured" in titles
+    assert "alpha — p50: not measured" in titles
+    assert "alpha — texts requested: not measured" in titles
+    assert not [t for t in titles if t.endswith(": 0.000") or t.endswith(": 0 ms")]
 
 
 def test_report_exits_nonzero_without_results(tmp_path):
