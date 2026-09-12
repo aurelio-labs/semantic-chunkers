@@ -5,6 +5,11 @@ checks:
   lint: make lint
   test: make test
 
+# GitHub usernames asked to review every PR an agent opens. Agents cannot
+# approve, so this is how a person is pulled into the merge gate.
+reviewers:
+  - jamescalam
+
 review:
   max_open_agent_prs: 3
 
