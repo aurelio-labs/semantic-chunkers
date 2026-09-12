@@ -65,7 +65,7 @@ class RegexSplitter(BaseSplitter):
 
         A compiled delimiter is split with its own flags. ``regex_pattern`` is
         written in verbose form, so pass it as
-        ``regex.compile(self.regex_pattern, flags=regex.VERBOSE)``; compiled
+        ``regex.compile(splitter.regex_pattern, flags=regex.VERBOSE)``; compiled
         without the flag it matches nothing and the document comes back whole.
 
         ```python
