@@ -1,11 +1,10 @@
 from typing import List
 
-from pydantic.v1 import BaseModel, Extra
+from pydantic import BaseModel, ConfigDict
 
 
 class BaseSplitter(BaseModel):
-    class Config:
-        extra = Extra.allow
+    model_config = ConfigDict(extra="allow")
 
     def __call__(self, doc: str) -> List[str]:
         raise NotImplementedError("Subclasses must implement this method")
