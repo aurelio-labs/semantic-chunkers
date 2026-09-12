@@ -1,18 +1,16 @@
 name: Visionary respond
 
-# The responder listens to every human comment on a PR or issue an agent
-# opened, and to any comment that mentions //vision anywhere else.
+# The responder answers every human comment on a PR or issue an agent opened,
+# and any comment containing //vision anywhere else.
 #
 # The phrase is deliberately not an @-mention: GitHub links every @name to a
 # real user, so it would notify a stranger, and @claude collides with the
 # Claude GitHub App's own mention handling. //vision pings nobody.
 #
-# Three events are needed. A conversation comment is issue_comment. A single
-# inline comment on the diff is pull_request_review_comment, and it wraps
-# itself in a review whose body is empty, so pull_request_review alone misses
-# it. A review submitted with a written summary is pull_request_review. A
-# review that carries both fires twice; the concurrency group below queues
-# them and the responder skips threads it has already answered.
+# A single inline comment on the diff arrives as a submitted review whose body
+# is empty, with the text in its inline comments — which a workflow expression
+# cannot read. So this file only filters out the agents' own comments, and the
+# reusable workflow's gate job decides whether the comment is for the role.
 
 on:
   issue_comment:
@@ -37,15 +35,7 @@ jobs:
   respond:
     if: >-
       github.event.sender.login != 'claude[bot]' &&
-      github.event.sender.login != 'github-actions[bot]' &&
-      (
-        (github.event_name == 'issue_comment' &&
-          (github.event.issue.user.login == 'claude[bot]' || contains(github.event.comment.body, '//vision'))) ||
-        (github.event_name == 'pull_request_review' && github.event.review.body != '' &&
-          (github.event.pull_request.user.login == 'claude[bot]' || contains(github.event.review.body, '//vision'))) ||
-        (github.event_name == 'pull_request_review_comment' &&
-          (github.event.pull_request.user.login == 'claude[bot]' || contains(github.event.comment.body, '//vision')))
-      )
+      github.event.sender.login != 'github-actions[bot]'
     uses: jamescalam/visionary/.github/workflows/respond.yml@main
     with:
       kind: ${{ (github.event_name != 'issue_comment' || github.event.issue.pull_request) && 'pr' || 'issue' }}
