@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 
 import regex
 
@@ -53,19 +53,29 @@ class RegexSplitter(BaseSplitter):
     """
 
     def __call__(
-        self, doc: str, delimiters: List[Union[str, regex.Pattern]] = []
+        self,
+        doc: str,
+        delimiters: Optional[List[Union[str, regex.Pattern]]] = None,
     ) -> List[str]:
+        """Split ``doc`` into sentences, applying each delimiter in turn.
+
+        Each delimiter refines the output of the one before it, so the
+        delimiters narrow the document progressively rather than each one
+        re-splitting the whole document.
+
+        ```python
+        RegexSplitter()("First line.\\nSecond line. Third line.", ["\\n"])
+        # ['First line.', 'Second line. Third line.']
+        ```
+        """
         if not delimiters:
-            compiled_pattern = regex.compile(self.regex_pattern)
-            delimiters.append(compiled_pattern)
+            delimiters = [regex.compile(self.regex_pattern, flags=regex.VERBOSE)]
         sentences = [doc]
         for delimiter in delimiters:
             sentences_for_next_delimiter = []
             for sentence in sentences:
                 if isinstance(delimiter, regex.Pattern):
-                    sub_sentences = regex.split(
-                        self.regex_pattern, doc, flags=regex.VERBOSE
-                    )
+                    sub_sentences = delimiter.split(sentence)
                     split_char = ""  # No single character to append for regex pattern
                 else:
                     sub_sentences = sentence.split(delimiter)
