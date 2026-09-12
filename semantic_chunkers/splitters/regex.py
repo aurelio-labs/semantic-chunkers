@@ -63,6 +63,11 @@ class RegexSplitter(BaseSplitter):
         delimiters narrow the document progressively rather than each one
         re-splitting the whole document.
 
+        A compiled delimiter is split with its own flags. ``regex_pattern`` is
+        written in verbose form, so pass it as
+        ``regex.compile(self.regex_pattern, flags=regex.VERBOSE)``; compiled
+        without the flag it matches nothing and the document comes back whole.
+
         ```python
         RegexSplitter()("First line.\\nSecond line. Third line.", ["\\n"])
         # ['First line.', 'Second line. Third line.']
