@@ -10,7 +10,7 @@ class RegexSplitter(BaseSplitter):
     Enhanced regex pattern to split a given text into sentences more accurately.
     """
 
-    regex_pattern = r"""
+    regex_pattern: str = r"""
         # Negative lookbehind for word boundary, word char, dot, word char
         (?<!\b\w\.\w.)
         # Negative lookbehind for single uppercase initials like "A."

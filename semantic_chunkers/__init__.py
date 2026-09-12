@@ -1,3 +1,5 @@
+from importlib.metadata import PackageNotFoundError, version
+
 from semantic_chunkers.chunkers import (
     BaseChunker,
     ConsecutiveChunker,
@@ -17,4 +19,7 @@ __all__ = [
     "RegexChunker",
 ]
 
-__version__ = "0.1.0.dev1"
+try:
+    __version__ = version("semantic-chunkers")
+except PackageNotFoundError:  # pragma: no cover - only when not installed
+    __version__ = "0.0.0"

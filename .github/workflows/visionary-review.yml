@@ -4,8 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+# Human pushes supersede an in-flight review. A push by the bot (the reviewer
+# committing fixes) gets its own group so it never cancels the run that made it.
 concurrency:
-  group: visionary-review-${{ github.event.pull_request.number }}
+  group: visionary-review-${{ github.event.pull_request.number }}-${{ (github.actor == 'claude[bot]' || github.actor == 'github-actions[bot]') && github.run_id || 'human' }}
   cancel-in-progress: true
 
 permissions:

@@ -1,0 +1,48 @@
+name: Visionary respond
+
+# The responder listens to every human comment on a PR or issue an agent
+# opened, and to any comment that mentions //vision anywhere else.
+# The phrase is deliberately not an @-mention: GitHub links every @name to a
+# real user, so it would notify a stranger, and @claude collides with the
+# Claude GitHub App's own mention handling. //vision pings nobody. Reviews
+# with inline comments arrive as one pull_request_review event; single
+# inline comments also produce one, so pull_request_review_comment is not
+# needed and would only cause duplicate runs.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  respond:
+    if: >-
+      github.event.sender.login != 'claude[bot]' &&
+      github.event.sender.login != 'github-actions[bot]' &&
+      (
+        (github.event_name == 'issue_comment' &&
+          (github.event.issue.user.login == 'claude[bot]' || contains(github.event.comment.body, '//vision'))) ||
+        (github.event_name == 'pull_request_review' &&
+          (github.event.pull_request.user.login == 'claude[bot]' || contains(github.event.review.body, '//vision')))
+      )
+    uses: jamescalam/visionary/.github/workflows/respond.yml@main
+    with:
+      kind: ${{ (github.event_name == 'pull_request_review' || github.event.issue.pull_request) && 'pr' || 'issue' }}
+      number: ${{ github.event.pull_request.number || github.event.issue.number }}
+      trigger_id: ${{ github.event.review.id || github.event.comment.id }}
+      head_ref: ${{ github.event.pull_request.head.ref || '' }}
+      setup: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        export PATH="$HOME/.local/bin:$PATH"
+        uv sync --extra dev
+    secrets:
+      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
