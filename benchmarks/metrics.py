@@ -14,6 +14,24 @@ from __future__ import annotations
 from typing import Iterable, Sequence
 
 
+def percentile(values: Sequence[float], q: float) -> float:
+    """The ``q``-th percentile of ``values`` (0-100), linearly interpolated.
+
+    Same definition as ``numpy.percentile`` with the default ``linear``
+    method, written out so the harness has no numeric dependency for it.
+    """
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return float(ordered[0])
+    pos = (q / 100) * (len(ordered) - 1)
+    low = int(pos)
+    high = min(low + 1, len(ordered) - 1)
+    frac = pos - low
+    return float(ordered[low] + (ordered[high] - ordered[low]) * frac)
+
+
 def _segment_ids(boundaries: Iterable[int], n_sentences: int) -> list[int]:
     """Map each sentence index to the id of the segment it belongs to."""
     cuts = set(boundaries)

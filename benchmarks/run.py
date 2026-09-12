@@ -24,11 +24,20 @@ ROOT = Path(__file__).parent
 DEFAULT_CONFIG = ROOT / "experiments" / "default.json"
 DIRECTIONS = {
     "boundary_f1": "up",
+    "boundary_f1_p05": "up",  # the weak tail: 1 doc in 20 scores at or below this
+    "boundary_f1_p50": "up",
+    "boundary_f1_p95": "up",
     "boundary_precision": "up",
     "boundary_recall": "up",
     "pk": "down",
+    "pk_p50": "down",
+    "pk_p95": "down",  # the bad tail for an error rate
     "windowdiff": "down",
+    "windowdiff_p50": "down",
+    "windowdiff_p95": "down",
     "wall_s": "down",  # full variant cost incl. embedding, in its own cache namespace
+    "doc_s_p50": "down",
+    "doc_s_p95": "down",
     "encoder_requests": "down",
     "encoder_texts_requested": "down",
     "encoder_model_calls": None,
@@ -136,12 +145,14 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
     chunker = make_chunker(variant, encoder)
     if encoder is not None:
         encoder.reset_counters()
-    pks, wds, ps, rs, f1s = [], [], [], [], []
+    pks, wds, ps, rs, f1s, doc_s = [], [], [], [], [], []
     n_chunks = 0
     chunk_tokens: list[int | None] = []
     t0 = time.perf_counter()
     for doc in docs:
+        d0 = time.perf_counter()
         result = chunker([doc.text])
+        doc_s.append(time.perf_counter() - d0)
         chunks = result[0]
         hyp = predicted_boundaries(chunks, doc.sentences)
         n = len(doc.sentences)
@@ -157,13 +168,26 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
         chunk_tokens.extend(c.token_count for c in chunks)
     wall = time.perf_counter() - t0
     mean = lambda xs: round(sum(xs) / len(xs), 4) if xs else 0.0  # noqa: E731
+    pct = lambda xs, q, nd=4: round(metrics.percentile(xs, q), nd)  # noqa: E731
     out = {
+        # Means are the headline; the percentiles describe the spread across
+        # documents, because a variant with a good average can still segment
+        # one document in twenty very badly.
         "boundary_f1": mean(f1s),
+        "boundary_f1_p05": pct(f1s, 5),
+        "boundary_f1_p50": pct(f1s, 50),
+        "boundary_f1_p95": pct(f1s, 95),
         "boundary_precision": mean(ps),
         "boundary_recall": mean(rs),
         "pk": mean(pks),
+        "pk_p50": pct(pks, 50),
+        "pk_p95": pct(pks, 95),
         "windowdiff": mean(wds),
+        "windowdiff_p50": pct(wds, 50),
+        "windowdiff_p95": pct(wds, 95),
         "wall_s": round(wall, 3),
+        "doc_s_p50": pct(doc_s, 50, 4),
+        "doc_s_p95": pct(doc_s, 95, 4),
         "chunks_per_doc": round(n_chunks / len(docs), 3),
     }
     measured = [t for t in chunk_tokens if t is not None]

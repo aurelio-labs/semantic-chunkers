@@ -1,4 +1,24 @@
+import pytest
+
 from benchmarks import metrics
+
+
+def test_percentile_matches_numpys_linear_definition():
+    import numpy as np
+
+    for values in ([1.0, 2.0, 3.0, 4.0], [0.3], [5.0, 1.0, 9.0], list(range(30))):
+        for q in (0, 5, 50, 95, 100):
+            assert metrics.percentile([float(v) for v in values], q) == pytest.approx(
+                float(np.percentile(np.asarray(values, dtype=float), q))
+            )
+    assert metrics.percentile([], 50) == 0.0
+
+
+def test_percentile_ignores_input_order():
+    ordered = [1.0, 2.0, 3.0, 4.0]
+    assert metrics.percentile([4.0, 1.0, 3.0, 2.0], 50) == metrics.percentile(
+        ordered, 50
+    )
 
 
 def test_perfect_segmentation_scores_zero_error_and_full_f1():

@@ -84,3 +84,35 @@ def test_main_records_a_failed_variant_and_still_writes_the_table(tmp_path):
     assert ok["variant"] == "ok"
     assert "error" not in ok
     assert ok["metrics"]["boundary_f1"] >= 0
+
+
+def test_metrics_carry_a_distribution_not_just_a_mean(tmp_path):
+    """Regex needs no encoder, so the whole runner is exercised with no model."""
+    config = tmp_path / "config.json"
+    config.write_text(
+        json.dumps(
+            {
+                "suites": [{"name": "synthetic-boundaries", "n_docs": 6, "seed": 0}],
+                "variants": [
+                    {
+                        "name": "ok",
+                        "chunker": "regex",
+                        "params": {"max_chunk_tokens": 300},
+                    }
+                ],
+            }
+        )
+    )
+    out = tmp_path / "results.json"
+    assert run.main([str(config), "--out", str(out)]) == 0
+    payload = json.loads(out.read_text())
+    m = payload["suites"][0]["metrics"]
+
+    assert m["boundary_f1_p05"] <= m["boundary_f1_p50"] <= m["boundary_f1_p95"]
+    assert m["pk_p50"] <= m["pk_p95"]
+    assert m["windowdiff_p50"] <= m["windowdiff_p95"]
+    assert 0 < m["doc_s_p50"] <= m["doc_s_p95"] <= m["wall_s"]
+    # every reported percentile declares which way is better
+    for key in m:
+        if key.endswith(("_p05", "_p50", "_p95")):
+            assert payload["directions"][key] in ("up", "down")
