@@ -1,0 +1,26 @@
+name: Visionary implement
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  implement:
+    if: github.event.label.name == 'approved'
+    uses: jamescalam/visionary/.github/workflows/implement.yml@main
+    with:
+      issue: ${{ github.event.issue.number }}
+      setup: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        export PATH="$HOME/.local/bin:$PATH"
+        uv sync --extra dev
+    secrets:
+      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

@@ -1,0 +1,21 @@
+# Visionary project config. Read by the visionary skills at the start of every run.
+version: 1
+
+checks:
+  lint: make lint
+  test: make test
+
+review:
+  max_open_agent_prs: 3
+
+plan:
+  max_proposals: 5
+
+labels:
+  proposal: proposal
+  approved: approved
+  in_progress: in-progress
+  reconsider: reconsider
+  fix_ok: agent-fix-ok
+  experiment: experiment
+  report: experiment-report

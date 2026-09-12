@@ -1,0 +1,17 @@
+name: Visionary tranche
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  tranche:
+    uses: jamescalam/visionary/.github/workflows/tranche.yml@main
+    with:
+      plan_workflow: visionary-plan.yml
