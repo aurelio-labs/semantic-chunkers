@@ -28,7 +28,7 @@ DIRECTIONS = {
     "boundary_recall": "up",
     "pk": "down",
     "windowdiff": "down",
-    "wall_s": "down",
+    "wall_s": "down",  # chunker work with a warm embedding cache; see README
     "encoder_requests": "down",
     "encoder_texts_requested": "down",
     "encoder_model_calls": None,
@@ -51,8 +51,19 @@ def git_sha() -> str:
         return "unknown"
 
 
+_ENCODERS: dict[str, CachedSentenceTransformerEncoder] = {}
+
+
 def make_encoder(spec: dict[str, Any]) -> CachedSentenceTransformerEncoder:
-    return CachedSentenceTransformerEncoder(name=spec.get("name", "all-MiniLM-L6-v2"))
+    """One encoder per model name for the whole run, so the model loads once."""
+    name = spec.get("name", "all-MiniLM-L6-v2")
+    if name not in _ENCODERS:
+        _ENCODERS[name] = CachedSentenceTransformerEncoder(name=name)
+    return _ENCODERS[name]
+
+
+def uses_encoder(variant: dict[str, Any]) -> bool:
+    return variant["chunker"] != "regex"
 
 
 def make_chunker(spec: dict[str, Any], encoder):
@@ -85,7 +96,7 @@ def predicted_boundaries(chunks, sentences: list[str]) -> list[int]:
     """
     boundaries: list[int] = []
     cursor = 0
-    for chunk in chunks:
+    for index, chunk in enumerate(chunks):
         if not chunk.splits:
             continue
         first = chunk.splits[0].strip()
@@ -93,7 +104,11 @@ def predicted_boundaries(chunks, sentences: list[str]) -> list[int]:
         while cursor < len(sentences) and sentences[cursor].strip() != first:
             cursor += 1
         if cursor >= len(sentences):
-            break
+            raise ValueError(
+                f"chunk {index} starts with a split that matches no remaining sentence: "
+                f"{first[:60]!r}. Boundaries after this point would be lost, so the run "
+                "stops rather than publish a score for the wrong segmentation."
+            )
         if cursor > 0:
             boundaries.append(cursor)
         cursor += len(chunk.splits)
@@ -101,17 +116,23 @@ def predicted_boundaries(chunks, sentences: list[str]) -> list[int]:
 
 
 def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, Any]:
-    encoder = make_encoder(variant.get("encoder", {}))
-    chunker = make_chunker(variant, encoder)
     docs = synthetic.build(
         n_docs=suite.get("n_docs", 30),
         min_sources=suite.get("min_sources", 3),
         max_sources=suite.get("max_sources", 6),
         seed=suite.get("seed", 0),
     )
-    if hasattr(encoder, "warm_up"):
+    encoder = (
+        make_encoder(variant.get("encoder", {})) if uses_encoder(variant) else None
+    )
+    chunker = make_chunker(variant, encoder)
+    if encoder is not None:
+        # Warm the model and the cache with every sentence before timing, so
+        # wall_s measures the chunker's own work with a warm cache for every
+        # variant alike. Encoder cost is reported separately by the counters.
         encoder.warm_up()
-    encoder.reset_counters()
+        encoder([s for doc in docs for s in doc.sentences])
+        encoder.reset_counters()
     pks, wds, ps, rs, f1s = [], [], [], [], []
     n_chunks = 0
     chunk_tokens: list[int] = []
@@ -130,7 +151,7 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
         rs.append(r)
         f1s.append(f)
         n_chunks += len(chunks)
-        chunk_tokens.extend(c.token_count or 0 for c in chunks)
+        chunk_tokens.extend(c.token_count for c in chunks)
     wall = time.perf_counter() - t0
     mean = lambda xs: round(sum(xs) / len(xs), 4) if xs else 0.0  # noqa: E731
     out = {
@@ -141,9 +162,14 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
         "windowdiff": mean(wds),
         "wall_s": round(wall, 3),
         "chunks_per_doc": round(n_chunks / len(docs), 3),
-        "mean_chunk_tokens": mean([t for t in chunk_tokens if t]),
     }
-    out.update(encoder.counters())
+    measured = [t for t in chunk_tokens if t is not None]
+    if measured:
+        # Consecutive and cumulative chunkers do not set token_count; leave
+        # the metric out rather than publish a zero that means "not measured".
+        out["mean_chunk_tokens"] = mean(measured)
+    if encoder is not None:
+        out.update(encoder.counters())
     return out
 
 

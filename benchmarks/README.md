@@ -4,7 +4,7 @@
 
 ## Suites
 
-**synthetic-boundaries.** Concatenate the introductions of three to six unrelated Wikipedia articles and record the seams. The chunker sees the concatenated text; the gold boundaries are the sentence indices where a new article begins. Metrics: boundary precision, recall, and F1 with a one-sentence tolerance; Pk and WindowDiff (lower is better); wall time with the model already loaded; encoder requests and texts requested (what a user would pay, cache or not); model calls and texts actually embedded (cache misses); chunks per document and mean chunk tokens.
+**synthetic-boundaries.** Concatenate the introductions of three to six unrelated Wikipedia articles and record the seams. The chunker sees the concatenated text; the gold boundaries are the sentence indices where a new article begins. Metrics: boundary precision, recall, and F1 with a one-sentence tolerance; Pk and WindowDiff (lower is better); `wall_s`, the chunker's own work measured after every sentence has been embedded once, so the cache is equally warm for every variant; `encoder_requests` and `encoder_texts_requested`, what a user would pay, cache or not; `encoder_model_calls` and `encoder_model_texts`, cache misses only, and note the cache also dedupes sentences repeated across documents, so `encoder_seconds` is unique-text cost rather than user cost; chunks per document and, for chunkers that record it, mean chunk tokens.
 
 Planned: section boundaries from Wikipedia-derived segmentation sets, and retrieval recall over answer spans.
 
