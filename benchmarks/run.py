@@ -38,7 +38,10 @@ DIRECTIONS = {
     "windowdiff": "down",
     "windowdiff_p50": "down",
     "windowdiff_p95": "down",
-    "wall_s": "down",  # full variant cost incl. embedding, in its own cache namespace
+    # chunker work plus the embedding of the variant's unique texts, in its own
+    # cache namespace; the cache dedupes texts repeated across documents, so
+    # this is not what every request would cost. See encoder_texts_requested.
+    "wall_s": "down",
     "doc_s_p50": "down",
     "doc_s_p95": "down",
     "encoder_requests": "down",
