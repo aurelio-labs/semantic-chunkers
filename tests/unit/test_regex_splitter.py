@@ -61,9 +61,7 @@ class TestRegexSplitter(unittest.TestCase):
 
         # Each piece appears exactly once: the second delimiter refines the
         # output of the first instead of re-splitting the whole document.
-        self.assertEqual(
-            result, ["Alpha one.", "Alpha two.", "Beta one.", "Beta two."]
-        )
+        self.assertEqual(result, ["Alpha one.", "Alpha two.", "Beta one.", "Beta two."])
         self.assertEqual(len(result), len(set(result)))
         # The output covers the document exactly once, with no repeats.
         self.assertEqual(

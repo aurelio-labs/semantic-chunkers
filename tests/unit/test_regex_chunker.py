@@ -56,7 +56,10 @@ class TestRegexChunker(unittest.TestCase):
         self.assertEqual(second, ["Beta one.", "Beta two."])
 
         # No single chunk may mix sentences from two source documents.
-        for chunks, own, other in ((chunks_list[0], "Alpha", "Beta"), (chunks_list[1], "Beta", "Alpha")):
+        for chunks, own, other in (
+            (chunks_list[0], "Alpha", "Beta"),
+            (chunks_list[1], "Beta", "Alpha"),
+        ):
             for chunk in chunks:
                 self.assertIn(own, chunk.content)
                 self.assertNotIn(other, chunk.content)
