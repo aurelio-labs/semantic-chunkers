@@ -47,34 +47,35 @@ def test_predicted_boundaries_raises_when_a_chunk_cannot_be_placed():
         predicted_boundaries(chunks, sentences)
 
 
-def test_main_records_a_failed_variant_and_still_writes_the_table(tmp_path):
-    """A variant that raises must not cost the whole table.
-
-    Both variants use the regex chunker, which needs no encoder, so this runs
-    with no model. The first is given a parameter the chunker rejects.
-    """
+def _config(tmp_path, variants):
     config = tmp_path / "config.json"
     config.write_text(
         json.dumps(
             {
                 "suites": [{"name": "synthetic-boundaries", "n_docs": 2, "seed": 0}],
-                "variants": [
-                    {
-                        "name": "broken",
-                        "chunker": "regex",
-                        "params": {"no_such_param": 1},
-                    },
-                    {
-                        "name": "ok",
-                        "chunker": "regex",
-                        "params": {"max_chunk_tokens": 300},
-                    },
-                ],
+                "variants": variants,
             }
         )
     )
+    return config
+
+
+_BROKEN = {"name": "broken", "chunker": "regex", "params": {"no_such_param": 1}}
+_OK = {"name": "ok", "chunker": "regex", "params": {"max_chunk_tokens": 300}}
+
+
+def test_main_records_a_failed_variant_and_still_writes_the_table(tmp_path):
+    """A variant that raises must not cost the whole table.
+
+    Both variants use the regex chunker, which needs no encoder, so this runs
+    with no model. The first is given a parameter the chunker rejects.
+
+    The exit code is 0: the bench action runs the command under ``set -e``, so
+    failing here would kill the step before the delta comment is rendered and
+    the ``failed:`` row would never reach the pull request.
+    """
     out = tmp_path / "results.json"
-    assert run.main([str(config), "--out", str(out)]) == 1
+    assert run.main([str(_config(tmp_path, [_BROKEN, _OK])), "--out", str(out)]) == 0
 
     payload = json.loads(out.read_text())
     broken, ok = payload["suites"]
@@ -84,6 +85,15 @@ def test_main_records_a_failed_variant_and_still_writes_the_table(tmp_path):
     assert ok["variant"] == "ok"
     assert "error" not in ok
     assert ok["metrics"]["boundary_f1"] >= 0
+
+
+def test_main_exits_nonzero_when_every_variant_failed(tmp_path):
+    """Nothing to report is a command failure, and CI should see it."""
+    out = tmp_path / "results.json"
+    assert run.main([str(_config(tmp_path, [_BROKEN])), "--out", str(out)]) == 1
+    payload = json.loads(out.read_text())
+    assert [s["variant"] for s in payload["suites"]] == ["broken"]
+    assert payload["suites"][0]["error"]
 
 
 def test_metrics_carry_a_distribution_not_just_a_mean(tmp_path):

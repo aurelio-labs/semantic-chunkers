@@ -247,8 +247,11 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"{len(failures)} variant(s) failed: {', '.join(failures)}", file=sys.stderr
         )
-        return 1
-    return 0
+    # A partial failure exits 0 on purpose. The bench action runs this command
+    # under `set -e`, so a non-zero exit kills the step before the delta is
+    # rendered and the `failed:` row carrying the error never reaches the PR.
+    # Only a run that produced no usable row at all is a command failure.
+    return 1 if len(failures) == len(results) else 0
 
 
 if __name__ == "__main__":

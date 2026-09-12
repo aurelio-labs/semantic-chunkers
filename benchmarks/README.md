@@ -20,7 +20,7 @@ Planned: section boundaries from Wikipedia-derived segmentation sets, and retrie
 
 ## Encoders
 
-`all-MiniLM-L6-v2` through sentence-transformers on CPU, wrapped as a semantic-router `DenseEncoder` with a SQLite embedding cache in `benchmarks/.cache/`. The cache is namespaced by variant, so a repeat run of an unchanged variant is free while a new variant pays its own way. Delete `benchmarks/.cache/` for a fully cold run. A variant that raises is recorded with an `error` field, the rest of the table is still written, and the command exits non-zero.
+`all-MiniLM-L6-v2` through sentence-transformers on CPU, wrapped as a semantic-router `DenseEncoder` with a SQLite embedding cache in `benchmarks/.cache/`. The cache is namespaced by variant, so a repeat run of an unchanged variant is free while a new variant pays its own way. Delete `benchmarks/.cache/` for a fully cold run. A variant that raises is recorded with an `error` field and the rest of the table is still written. The command exits non-zero only when every variant failed: the bench workflow runs it under `set -e`, so failing on a partial run would kill the step before the delta comment is rendered and the `failed:` row carrying the error would never reach the pull request.
 
 ## Running one experiment
 
