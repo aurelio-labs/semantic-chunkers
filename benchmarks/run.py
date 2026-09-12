@@ -15,10 +15,13 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from benchmarks import metrics, synthetic
 from benchmarks.encoders import CachedSentenceTransformerEncoder
+
+if TYPE_CHECKING:  # the runtime import stays inside make_chunker, see below
+    from semantic_chunkers.chunkers.base import BaseChunker
 
 ROOT = Path(__file__).parent
 DEFAULT_CONFIG = ROOT / "experiments" / "default.json"
@@ -81,7 +84,9 @@ def uses_encoder(variant: dict[str, Any]) -> bool:
     return variant["chunker"] != "regex"
 
 
-def make_chunker(spec: dict[str, Any], encoder):
+def make_chunker(
+    spec: dict[str, Any], encoder: CachedSentenceTransformerEncoder | None
+) -> BaseChunker:
     from semantic_chunkers import (
         ConsecutiveChunker,
         CumulativeChunker,
@@ -91,14 +96,18 @@ def make_chunker(spec: dict[str, Any], encoder):
 
     kind = spec["chunker"]
     params = dict(spec.get("params", {}))
+    if kind == "regex":
+        return RegexChunker(**params)
+    if encoder is None:
+        # BaseChunker would otherwise substitute a bare DenseEncoder that
+        # cannot encode, and the variant would fail deep in the chunker.
+        raise ValueError(f"chunker {kind} needs an encoder")
     if kind == "statistical":
         return StatisticalChunker(encoder=encoder, **params)
     if kind == "consecutive":
         return ConsecutiveChunker(encoder=encoder, **params)
     if kind == "cumulative":
         return CumulativeChunker(encoder=encoder, **params)
-    if kind == "regex":
-        return RegexChunker(**params)
     raise ValueError(f"unknown chunker {kind}")
 
 

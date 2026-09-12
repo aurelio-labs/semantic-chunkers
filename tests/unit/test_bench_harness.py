@@ -96,6 +96,12 @@ def test_main_exits_nonzero_when_every_variant_failed(tmp_path):
     assert payload["suites"][0]["error"]
 
 
+def test_make_chunker_refuses_to_build_an_embedding_chunker_without_an_encoder():
+    """BaseChunker would otherwise substitute a DenseEncoder that cannot encode."""
+    with pytest.raises(ValueError, match="needs an encoder"):
+        run.make_chunker({"chunker": "statistical"}, None)
+
+
 def test_metrics_carry_a_distribution_not_just_a_mean(tmp_path):
     """Regex needs no encoder, so the whole runner is exercised with no model."""
     config = tmp_path / "config.json"
