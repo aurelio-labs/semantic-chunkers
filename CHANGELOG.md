@@ -71,7 +71,7 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
   # ['a', 'b', 'c']
   ```
 
-- Plotting moved out of `StatisticalChunker` and into `semantic_chunkers.stats`, behind the `stats` extra. `chunker.plot_chunks = True` and both `plot_*` methods still work, but with matplotlib missing they now raise `ImportError` naming the extra instead of logging a warning and silently drawing nothing. The old warning pointed at `semantic-router[processing]`, which is neither the right package nor the right extra. `ChunkStatistics` moved with them; import it from `semantic_chunkers.stats` rather than `semantic_chunkers.chunkers.statistical`.
+- Plotting moved out of `StatisticalChunker` and into `semantic_chunkers.stats`, behind the `stats` extra. `chunker.plot_chunks = True` and both `plot_*` methods still work, but with matplotlib missing they now raise `ImportError` naming the extra instead of logging a warning and silently drawing nothing. The old warning pointed at `semantic-router[processing]`, which is neither the right package nor the right extra. `ChunkStatistics` moved with them. It is re-exported where it was, so `from semantic_chunkers.chunkers.statistical import ChunkStatistics` still resolves, but `semantic_chunkers.stats` is now its home.
 
   ```python
   from semantic_chunkers import StatisticalChunker
