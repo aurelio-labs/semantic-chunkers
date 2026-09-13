@@ -5,6 +5,11 @@ checks:
   lint: make lint
   test: make test
 
+bench:
+  command: make bench
+  results: benchmarks/results.json
+  experiments: benchmarks/experiments
+
 # GitHub usernames asked to review every PR an agent opens. Agents cannot
 # approve, so this is how a person is pulled into the merge gate.
 reviewers:
