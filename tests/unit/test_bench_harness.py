@@ -122,13 +122,12 @@ def test_every_document_is_embedded_in_its_own_cache_namespace(
     metrics = run.run_synthetic(variant, {"name": "synthetic-boundaries", "n_docs": 3})
 
     model = encoder._model
-    # one partition per document, entered in order and never returned to, and
-    # qualified by the suite so two suites sharing text cannot bill each other
-    assert list(dict.fromkeys(model.namespaces)) == [
-        "synthetic-boundaries/consecutive/stub/0",
-        "synthetic-boundaries/consecutive/stub/1",
-        "synthetic-boundaries/consecutive/stub/2",
-    ]
+    # one partition per document, entered in order and never returned to, each
+    # qualified by the suite so nothing is billed to another suite's run
+    namespaces = list(dict.fromkeys(model.namespaces))
+    assert [n.rsplit("/", 1)[1] for n in namespaces] == ["0", "1", "2"]
+    assert all(n.startswith("synthetic-boundaries@") for n in namespaces)
+    assert all(n.endswith(f"/consecutive/stub/{i}") for i, n in enumerate(namespaces))
     # the consequence: text shared between documents is embedded once per
     # document, so more texts reach the model than the run has distinct texts
     assert metrics["encoder_model_texts"] == len(model.texts) > len(set(model.texts))
@@ -185,9 +184,25 @@ def test_a_second_suite_does_not_reuse_the_first_suite_cache(monkeypatch, fake_e
     run.run_synthetic(variant, {"name": "suite-b", "n_docs": 2, "seed": 0})
 
     namespaces = list(dict.fromkeys(encoder._model.namespaces))
-    assert namespaces == [
-        "suite-a/consecutive/stub/0",
-        "suite-a/consecutive/stub/1",
-        "suite-b/consecutive/stub/0",
-        "suite-b/consecutive/stub/1",
-    ]
+    assert len(namespaces) == 4, "two suites, two documents each, no partition shared"
+    assert sum(n.startswith("suite-a@") for n in namespaces) == 2
+    assert sum(n.startswith("suite-b@") for n in namespaces) == 2
+
+
+def test_the_same_suite_twice_with_different_parameters_does_not_share_a_cache(
+    monkeypatch, fake_encoder
+):
+    """A seed sweep lists one suite repeatedly; those runs are as distinct as two suites."""
+    encoder = fake_encoder("consecutive/stub")
+    monkeypatch.setattr(run, "make_encoder", lambda spec, namespace: encoder)
+    variant = {
+        "name": "consecutive/stub",
+        "chunker": "consecutive",
+        "params": {"score_threshold": 0.45},
+    }
+    name = "synthetic-boundaries"
+    run.run_synthetic(variant, {"name": name, "n_docs": 2, "seed": 0})
+    run.run_synthetic(variant, {"name": name, "n_docs": 2, "seed": 1})
+
+    namespaces = set(encoder._model.namespaces)
+    assert len(namespaces) == 4, "a differing seed must not reuse the earlier partition"

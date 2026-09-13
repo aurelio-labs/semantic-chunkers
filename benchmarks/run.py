@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from benchmarks import metrics, synthetic
-from benchmarks.encoders import CachedSentenceTransformerEncoder
+from benchmarks.encoders import CachedSentenceTransformerEncoder, config_hash
 
 if TYPE_CHECKING:  # the runtime import stays inside make_chunker, see below
     from semantic_chunkers.chunkers.base import BaseChunker
@@ -39,7 +39,7 @@ DIRECTIONS = {
     "windowdiff": "down",
     "windowdiff_p50": "down",
     "windowdiff_p95": "down",
-    # chunker work plus embedding, in a cache namespace per variant and
+    # chunker work plus embedding, in a cache namespace per suite, variant and
     # document, so no variant and no document is served free by an earlier
     # one. Texts repeated within a single document still dedupe.
     "wall_s": "down",
@@ -151,7 +151,10 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
         max_sources=suite.get("max_sources", 6),
         seed=suite.get("seed", 0),
     )
-    suite_name = suite.get("name", "suite")
+    # The suite's parameters, not just its name: a config may list the same
+    # suite twice with different seeds or sizes, and those runs must not share
+    # a cache partition any more than two different suites may.
+    suite_name = f"{suite.get('name', 'suite')}@{config_hash(suite)}"
     encoder = (
         make_encoder(
             variant.get("encoder", {}), namespace=f"{suite_name}/{variant['name']}"
