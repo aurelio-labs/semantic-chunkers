@@ -22,6 +22,7 @@ from benchmarks.encoders import CachedSentenceTransformerEncoder
 
 if TYPE_CHECKING:  # the runtime import stays inside make_chunker, see below
     from semantic_chunkers.chunkers.base import BaseChunker
+    from semantic_chunkers.schema import Chunk
 
 ROOT = Path(__file__).parent
 DEFAULT_CONFIG = ROOT / "experiments" / "default.json"
@@ -114,7 +115,7 @@ def make_chunker(
     raise ValueError(f"unknown chunker {kind}")
 
 
-def predicted_boundaries(chunks, sentences: list[str]) -> list[int]:
+def predicted_boundaries(chunks: list[Chunk], sentences: list[str]) -> list[int]:
     """Map chunk starts back to sentence indices.
 
     Chunks are made of the same sentence units the synthetic suite produced,
