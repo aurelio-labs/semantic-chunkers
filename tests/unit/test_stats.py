@@ -239,6 +239,15 @@ def test_chunker_records_statistics_for_the_last_batch(no_matplotlib, chunker):
     assert chunker.statistics.chunks_by_last_split == 1
 
 
+def test_chunk_statistics_still_resolves_from_the_chunker_module():
+    """The CHANGELOG promises the pre-move import path keeps working."""
+    from semantic_chunkers.chunkers.statistical import (
+        ChunkStatistics as ReexportedChunkStatistics,
+    )
+
+    assert ReexportedChunkStatistics is ChunkStatistics
+
+
 def test_statistical_chunker_does_not_import_matplotlib():
     """The core module keeps no trace of the plotting library. VISION.md:42."""
     source = Path(inspect.getsourcefile(statistical) or "").read_text()
