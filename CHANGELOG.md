@@ -111,6 +111,18 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
 ### Added
 - `BaseSplitter.spans(doc)` and `RegexSplitter.spans(doc, delimiters)` return the `(start, end)` offsets of each split in the document, which is where `Chunk.content` and the chunk offsets come from. The default implementation locates the splits of any splitter whose `__call__` returns verbatim pieces of the document, so an existing custom splitter gets offsets without a change; one that rewrites its text returns no spans and its chunks carry no offsets.
 
+### Fixed
+- `StatisticalChunker.acall` chunks a document the same way `__call__` does. The sync path leads each encoder batch with the chunk the previous batch left open; the async path started every batch afresh, so every 64th split ended a chunk and any document longer than `batch_size` splits came back chunked differently depending on which one you called. The async path also ignored `plot_chunks` and `enable_statistics`, and it now encodes each split once instead of re-encoding the carried ones.
+
+  ```python
+  # before, on a document of 200 sentences
+  chunker(docs) == await chunker.acall(docs)   # False
+  # after
+  chunker(docs) == await chunker.acall(docs)   # True
+  ```
+
+- An encoder that stalls raises instead of returning nothing. `async_retry_with_timeout` swallowed the timeout that ended its last attempt, so `StatisticalChunker._async_encode_documents` returned `None` and the caller saw a `TypeError` from the similarity scores with only a log warning to explain it. The per-attempt budget also went from 5 seconds to 60, which one batch of up to 2000 documents against a remote encoder can actually meet.
+
 ### Changed
 - `semantic_chunkers.__version__` is read from the installed package metadata instead of a hard-coded string that had drifted from `pyproject.toml`.
 - The mutable default argument `delimiters=[]` on `RegexChunker.__init__` and `RegexSplitter.__call__` is now `None`. The first call to `RegexSplitter` with no delimiters used to append the compiled sentence pattern into the shared signature default, where it stayed for the life of the process.

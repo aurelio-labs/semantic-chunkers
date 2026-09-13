@@ -55,3 +55,9 @@ ignore = ["E501", "T201"]
 
 [tool.mypy]
 ignore_missing_imports = true
+# tests/unit and tests/functional both hold a conftest.py. Naming modules
+# after their path tells the two apart without an __init__.py in every
+# directory, which would change how pytest imports the tests.
+explicit_package_bases = true
+namespace_packages = true
+mypy_path = "."

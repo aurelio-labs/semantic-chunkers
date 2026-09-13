@@ -41,6 +41,9 @@ class CachedOnlyEncoder(CachedSentenceTransformerEncoder):
     missing embeddings back.
     """
 
+    def __init__(self, cache_dir: Path = CACHE_DIR, **kwargs):
+        super().__init__(cache_dir=cache_dir, **kwargs)
+
     def _load(self):
         if os.environ.get("SEMANTIC_CHUNKERS_REFRESH_CACHE") != "1":
             raise RuntimeError(REFRESH_MESSAGE)
@@ -50,7 +53,7 @@ class CachedOnlyEncoder(CachedSentenceTransformerEncoder):
 @pytest.fixture
 def encoder() -> CachedOnlyEncoder:
     """`all-MiniLM-L6-v2`, served from the committed embedding cache."""
-    return CachedOnlyEncoder(cache_dir=CACHE_DIR)
+    return CachedOnlyEncoder()
 
 
 @pytest.fixture(scope="session")
