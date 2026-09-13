@@ -498,7 +498,8 @@ class StatisticalChunker(BaseChunker):
                 f"Token count mismatch: {original_token_count} != {split_token_count}"
             )
 
-        self.statistics = chunk_statistics(docs=docs, chunks=chunks)
+        # Counts are read back off the finished chunks, not tallied in the loop.
+        self.statistics = chunk_statistics(docs, chunks)
 
         return chunks
 
@@ -511,24 +512,13 @@ class StatisticalChunker(BaseChunker):
     ) -> None:
         """Plot the similarity scores and the chunk sizes of one batch.
 
-        Drawn by :mod:`semantic_chunkers.stats`, which needs the plotting
-        extra: ``pip install semantic-chunkers[stats]``.
-
-        :param similarities: Similarity score of each split against its window.
-        :param split_indices: Indices this chunker decided to cut after.
-        :param chunks: The chunks those cuts produced.
-        :param calculated_threshold: Threshold the scores were compared against.
-
-        :raises ImportError: When the ``stats`` extra is not installed.
+        Drawn by `semantic_chunkers.stats`, which raises without the plotting
+        extra: `pip install semantic-chunkers[stats]`.
         """
         from semantic_chunkers.stats import plot_similarity_scores
 
         plot_similarity_scores(
-            similarities=similarities,
-            split_indices=split_indices,
-            chunks=chunks,
-            calculated_threshold=calculated_threshold,
-            window_size=self.window_size,
+            similarities, split_indices, chunks, calculated_threshold, self.window_size
         )
 
     def plot_sentence_similarity_scores(
@@ -536,23 +526,13 @@ class StatisticalChunker(BaseChunker):
     ) -> None:
         """Plot how each sentence of ``docs`` compares with the ones before it.
 
-        Drawn by :mod:`semantic_chunkers.stats`, which needs the plotting
-        extra: ``pip install semantic-chunkers[stats]``. The sentences are
-        encoded only once that extra is known to be present, so a missing
-        install costs no encoder calls.
-
-        :param docs: Documents to split into sentences and compare.
-        :param threshold: Score below which a sentence is reported as a cut.
-        :param window_size: Number of preceding sentences averaged per window.
-
-        :raises ImportError: When the ``stats`` extra is not installed.
+        Drawn by `semantic_chunkers.stats`, which raises without the plotting
+        extra: `pip install semantic-chunkers[stats]`. It encodes the sentences
+        itself, and only once that extra is known to be present.
         """
         from semantic_chunkers.stats import plot_sentence_similarity_scores
 
         sentences = [sentence for doc in docs for sentence in self._split(doc)]
         plot_sentence_similarity_scores(
-            sentences=sentences,
-            encode=self._encode_documents,
-            threshold=threshold,
-            window_size=window_size,
+            sentences, self._encode_documents, threshold, window_size
         )
