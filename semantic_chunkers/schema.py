@@ -17,7 +17,9 @@ class Chunk(BaseModel):
     ```
 
     ``splits`` holds the units the splitter produced, stripped, which is what
-    the chunker compared when it decided where to cut.
+    the chunker compared when it decided where to cut. ``token_count`` counts
+    those splits, not ``content``, so a chunk that swallowed a page of blank
+    lines holds more tokens than its count and its chunker's budget admit.
 
     The three are ``None`` together for a chunk the library could not place in
     a source document: one built by hand, or one whose splits are not text —
