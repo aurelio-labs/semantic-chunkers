@@ -28,7 +28,9 @@ from semantic_chunkers.stats import (
 
 ENCODER_NAME = "text-embedding-3-small"
 
-DOCS = ["doc one about something. doc two about something."]
+# Two sentences: RegexSplitter only cuts where an uppercase letter follows.
+DOCS = ["Doc one about something. Doc two about something."]
+SENTENCES = ["Doc one about something.", "Doc two about something."]
 
 
 @pytest.fixture
@@ -191,9 +193,7 @@ def test_chunker_plot_sentence_similarity_scores_names_the_stats_extra(
     chunker, no_matplotlib
 ):
     with pytest.raises(ImportError, match=r"semantic-chunkers\[stats\]"):
-        chunker.plot_sentence_similarity_scores(
-            docs=DOCS, threshold=0.5, window_size=1
-        )
+        chunker.plot_sentence_similarity_scores(docs=DOCS, threshold=0.5, window_size=1)
 
     chunker.encoder.assert_not_called()
 
@@ -204,7 +204,7 @@ def test_chunker_plot_sentence_similarity_scores_encodes_every_sentence(
     chunker.plot_sentence_similarity_scores(docs=DOCS, threshold=0.5, window_size=1)
 
     (sentences,), _ = chunker.encoder.call_args
-    assert sentences == ["doc one about something.", "doc two about something."]
+    assert sentences == SENTENCES
     fake_pyplot.show.assert_called_once()
 
 
@@ -234,7 +234,7 @@ def test_chunker_records_statistics_for_the_last_batch(no_matplotlib, chunker):
     chunker(docs=DOCS)
 
     assert isinstance(chunker.statistics, ChunkStatistics)
-    assert chunker.statistics.total_documents == 2
+    assert chunker.statistics.total_documents == len(SENTENCES)
     assert chunker.statistics.total_chunks == 1
     assert chunker.statistics.chunks_by_last_split == 1
 
