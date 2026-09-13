@@ -106,23 +106,19 @@ class ConsecutiveChunker(BaseChunker):
         """
         all_chunks = []
         for doc in docs:
-            # split the document into sentences (if needed)
-            if isinstance(doc, str):
-                splits = self._split(doc)
-            else:
-                splits = doc
+            # split the document into sentences (if needed), keeping track of
+            # where each split sits in it
+            splits, spans = self._split_spans(doc)
             doc_chunks = self._chunk(splits)
-            all_chunks.append(doc_chunks)
+            all_chunks.append(self._attach_spans(doc, spans, doc_chunks))
         return all_chunks
 
     async def acall(self, docs: List[Any]) -> List[List[Chunk]]:
         all_chunks = []
         for doc in docs:
-            # split the document into sentences (if needed)
-            if isinstance(doc, str):
-                splits = self._split(doc)
-            else:
-                splits = doc
+            # split the document into sentences (if needed), keeping track of
+            # where each split sits in it
+            splits, spans = self._split_spans(doc)
             doc_chunks = await self._async_chunk(splits)
-            all_chunks.append(doc_chunks)
+            all_chunks.append(self._attach_spans(doc, spans, doc_chunks))
         return all_chunks

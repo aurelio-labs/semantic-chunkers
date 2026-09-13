@@ -9,6 +9,7 @@ an encoder. Every variant runs on every suite in the config.
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 import subprocess
 import sys
@@ -116,13 +117,64 @@ def make_chunker(
     raise ValueError(f"unknown chunker {kind}")
 
 
-def predicted_boundaries(chunks: list[Chunk], sentences: list[str]) -> list[int]:
+def sentence_starts(text: str, sentences: list[str]) -> list[int] | None:
+    """Where each of the suite's sentences begins in ``text``.
+
+    ``None`` when a sentence is not there to be found, which means the suite
+    did not build ``text`` out of these sentences and offsets into it say
+    nothing about them.
+    """
+    starts: list[int] = []
+    cursor = 0
+    for sentence in sentences:
+        index = text.find(sentence, cursor)
+        if index == -1:
+            return None
+        starts.append(index)
+        cursor = index + len(sentence)
+    return starts
+
+
+def predicted_boundaries(
+    chunks: list[Chunk], sentences: list[str], text: str | None = None
+) -> list[int]:
     """Map chunk starts back to sentence indices.
 
-    Chunks are made of the same sentence units the synthetic suite produced,
-    so the first split of each chunk is located by walking the sentence list
-    in order.
+    A chunk that carries offsets says where it begins, so its first sentence
+    is the first one starting at or after that offset — arithmetic, with no
+    text to match. Chunks without offsets, from a splitter that could not be
+    located in its document, fall back to walking the sentence list looking
+    for the text of each chunk's first split.
+
+    Either way the scored segmentation is the same, and a chunk that lands on
+    a sentence it does not start with stops the run rather than publish a
+    score for the wrong segmentation.
     """
+    starts = sentence_starts(text, sentences) if text is not None else None
+    placed = [chunk for chunk in chunks if chunk.splits]
+    offsets = [chunk.start for chunk in placed if chunk.start is not None]
+    if starts is None or len(offsets) != len(placed):
+        return _boundaries_by_text(chunks, sentences)
+
+    boundaries: list[int] = []
+    for index, (chunk, offset) in enumerate(zip(placed, offsets)):
+        # the chunk starts in the whitespace after the previous sentence, so
+        # its own first sentence is the next one to begin
+        position = bisect.bisect_left(starts, offset)
+        first = str(chunk.splits[0]).strip()
+        if position >= len(sentences) or sentences[position].strip() != first:
+            raise ValueError(
+                f"chunk {index} starts at offset {offset}, where no sentence "
+                f"begins with {first[:60]!r}. Boundaries after this point would be "
+                "wrong, so the run stops rather than publish a score for the wrong "
+                "segmentation."
+            )
+        if position > 0:
+            boundaries.append(position)
+    return boundaries
+
+
+def _boundaries_by_text(chunks: list[Chunk], sentences: list[str]) -> list[int]:
     boundaries: list[int] = []
     cursor = 0
     for index, chunk in enumerate(chunks):
@@ -190,7 +242,7 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
         result = chunker([doc.text])
         doc_s.append(time.perf_counter() - d0)
         chunks = result[0]
-        hyp = predicted_boundaries(chunks, doc.sentences)
+        hyp = predicted_boundaries(chunks, doc.sentences, doc.text)
         n = len(doc.sentences)
         pks.append(metrics.pk(doc.boundaries, hyp, n))
         wds.append(metrics.windowdiff(doc.boundaries, hyp, n))

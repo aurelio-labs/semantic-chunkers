@@ -36,7 +36,8 @@ class RegexChunker(BaseChunker):
             current_chunk = Chunk(splits=[], metadata={})
             current_chunk.token_count = 0
 
-            sentences = self.splitter(doc, delimiters=self.delimiters)
+            spans = self.splitter.spans(doc, delimiters=self.delimiters)
+            sentences = [doc[start:end] for start, end in spans]
             for sentence in sentences:
                 sentence_token_count = text.tiktoken_length(sentence)
                 if current_chunk.token_count is None:
@@ -59,7 +60,7 @@ class RegexChunker(BaseChunker):
             if current_chunk.splits:
                 chunks.append(current_chunk)
 
-            docs_chunks.append(chunks)
+            docs_chunks.append(self._attach_spans(doc, spans, chunks))
 
         return docs_chunks
 

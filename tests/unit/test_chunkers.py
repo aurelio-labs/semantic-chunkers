@@ -277,3 +277,36 @@ def test_regex_splitter_accepts_custom_pattern():
     splitter = RegexSplitter(regex_pattern=r"\|")
     assert splitter.regex_pattern == r"\|"
     assert splitter("a|b|c") == ["a", "b", "c"]
+
+
+class WordSplitter(BaseSplitter):
+    """A splitter that implements nothing but ``__call__``."""
+
+    def __call__(self, doc: str) -> list[str]:
+        return [word for word in doc.split(" ") if word]
+
+
+class LoudSplitter(WordSplitter):
+    """A splitter whose splits cannot be found in the document."""
+
+    def __call__(self, doc: str) -> list[str]:
+        return [word.upper() for word in super().__call__(doc)]
+
+
+def test_base_splitter_locates_the_splits_of_a_custom_splitter():
+    """A splitter written before offsets existed still gets them."""
+    doc = "alpha  beta gamma"
+
+    spans = WordSplitter().spans(doc)
+
+    assert [doc[start:end] for start, end in spans] == ["alpha", "beta", "gamma"]
+    assert spans == [(0, 5), (7, 11), (12, 17)]
+
+
+def test_base_splitter_gives_no_spans_when_the_text_was_rewritten():
+    """Offsets that might be wrong are worse than none, so none are returned."""
+    assert LoudSplitter().spans("alpha beta") == []
+
+
+def test_base_splitter_gives_no_spans_for_an_empty_document():
+    assert WordSplitter().spans("") == []
