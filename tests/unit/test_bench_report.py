@@ -78,8 +78,11 @@ def test_report_writes_self_contained_html(tmp_path):
     page = out.read_text()
     assert page.startswith("<!doctype html>")
     assert "<svg" in page
-    # no external assets, so the file opens offline
-    assert "http://" not in page and "<script" not in page
+    # no external assets, so the file opens offline: the page is styled from one
+    # inline <style> block, so a remote stylesheet, a CSS url(...) or an @import
+    # are the ways that could regress
+    for external in ("http://", "https://", "<script", "url(", "@import"):
+        assert external not in page, f"report reaches outside itself: {external}"
     # the highest F1 leads, and every variant is in the table view
     assert "alpha" in page and "beta" in page
     assert page.index(">alpha<") < page.index(">beta<")
