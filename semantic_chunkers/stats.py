@@ -13,6 +13,13 @@ import numpy as np
 
 from semantic_chunkers.schema import Chunk
 
+__all__ = [
+    "ChunkStatistics",
+    "chunk_statistics",
+    "plot_sentence_similarity_scores",
+    "plot_similarity_scores",
+]
+
 
 @dataclass
 class ChunkStatistics:
