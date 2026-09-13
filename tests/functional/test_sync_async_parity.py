@@ -6,6 +6,8 @@ the two paths diverged: the sync path carried an unfinished chunk into the next
 batch and the async path started afresh, so every 64th split ended a chunk.
 """
 
+from math import ceil
+
 import pytest
 
 from semantic_chunkers import (
@@ -63,6 +65,23 @@ async def test_chunkers_chunk_the_same_sync_and_async(chunker, document):
     ]
     assert cuts(sync_chunks) == cuts(async_chunks)
     assert scores(sync_chunks) == pytest.approx(scores(async_chunks))
+
+
+@pytest.mark.asyncio
+async def test_async_statistical_chunking_encodes_each_split_once(encoder, document):
+    """Parity of chunks is not parity of cost: see priority 2 in VISION.md.
+
+    The sync path re-encodes the splits it carries into the next batch, so it
+    asks for more texts than there are splits. The async path encodes the whole
+    document up front and slices, so it asks for exactly one text per split —
+    an invariant the chunk comparison above would not notice being lost.
+    """
+    splits = RegexSplitter()(document)
+
+    await StatisticalChunker(encoder=encoder).acall([document])
+
+    assert encoder.requested_texts == len(splits)
+    assert encoder.requests == ceil(len(splits) / BATCH_SIZE)
 
 
 @pytest.mark.asyncio
