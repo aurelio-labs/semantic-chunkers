@@ -42,7 +42,13 @@ class ChunkStatistics:
 
 
 def chunk_statistics(docs: List[str], chunks: List[Chunk]) -> ChunkStatistics:
-    """Describe the chunks a batch of documents produced."""
+    """Describe the chunks a batch of documents produced.
+
+    :param docs: The documents that were chunked.
+    :param chunks: The chunks they produced, in order.
+
+    :return: The statistics for this batch.
+    """
     # Why a chunk was cut is already on the chunk, so read the counts back off
     # the result instead of tallying them inside the chunking loop.
     total = len(chunks)
@@ -66,7 +72,10 @@ def chunk_statistics(docs: List[str], chunks: List[Chunk]) -> ChunkStatistics:
 
 
 def _pyplot():
-    """Return ``matplotlib.pyplot``, or say which extra installs it."""
+    """Return ``matplotlib.pyplot``, or say which extra installs it.
+
+    :raises ImportError: When matplotlib is not installed.
+    """
     try:
         from matplotlib import pyplot as plt
     except ImportError as e:
@@ -84,7 +93,16 @@ def plot_similarity_scores(
     calculated_threshold: float,
     window_size: int,
 ) -> None:
-    """Plot the rolling-window similarity of each split, then each chunk's size."""
+    """Plot the rolling-window similarity of each split, then each chunk's size.
+
+    :param similarities: Similarity score of each split against its window.
+    :param split_indices: Indices the chunker decided to cut after.
+    :param chunks: The chunks those cuts produced.
+    :param calculated_threshold: Threshold the scores were compared against.
+    :param window_size: Number of preceding splits in the rolling window.
+
+    :raises ImportError: When matplotlib is not installed.
+    """
     plt = _pyplot()
     _, axs = plt.subplots(2, 1, figsize=(12, 12))
 
@@ -147,9 +165,16 @@ def plot_sentence_similarity_scores(
 ) -> None:
     """Plot how each sentence compares with the ``window_size`` sentences before it.
 
-    Prints the first sentence after every score below ``threshold``. ``encode``
-    is called only once matplotlib is known to be importable, so a missing
-    install costs no encoder calls.
+    Prints the first sentence after every score below ``threshold``.
+
+    :param sentences: The sentences to compare, in document order.
+    :param encode: Callable turning those sentences into embeddings. It is
+        called only once matplotlib is known to be importable, so a missing
+        install costs no encoder calls.
+    :param threshold: Score below which a sentence is reported as a boundary.
+    :param window_size: Number of preceding sentences averaged into the window.
+
+    :raises ImportError: When matplotlib is not installed.
     """
     plt = _pyplot()
     encoded_sentences = encode(sentences)
