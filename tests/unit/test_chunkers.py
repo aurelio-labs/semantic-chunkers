@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, Mock, create_autospec
 
 import numpy as np
@@ -213,7 +214,9 @@ def test_statistical_chunker():
 async def test_async_statistical_chunker():
     # Create a Mock object for the encoder
     mock_encoder = AsyncMock()
-    mock_encoder.side_effect = lambda docs: np.array([[1, 0] for _ in docs])
+    # The chunker awaits encoder.acall, so the side effect belongs there; on
+    # the mock itself it left every batch encoded as nothing at all.
+    mock_encoder.acall.side_effect = lambda docs: np.array([[1, 0] for _ in docs])
 
     encoder = OpenAIEncoder(
         name=ENCODER_NAME,
@@ -238,6 +241,24 @@ async def test_async_statistical_chunker():
     assert splits[2][0].splits == ["doc3 about something"], (
         "Second split does not match expected documents"
     )
+
+
+@pytest.mark.asyncio
+async def test_async_statistical_chunker_raises_when_the_encoder_times_out():
+    """A timed-out encode used to arrive as None and fail as a TypeError.
+
+    The encoder raises the timeout that a stalled one would have raised from
+    inside the retry helper, so the test reaches the same branch without
+    waiting out the budget.
+    """
+    mock_encoder = Mock()
+    mock_encoder.acall = AsyncMock(side_effect=asyncio.TimeoutError)
+
+    chunker = StatisticalChunker(encoder=OpenAIEncoder(name=ENCODER_NAME, api_key="a"))
+    chunker.encoder = mock_encoder
+
+    with pytest.raises(asyncio.TimeoutError):
+        await chunker.acall(docs=["doc1 about something. Doc2 about something."])
 
 
 @pytest.fixture

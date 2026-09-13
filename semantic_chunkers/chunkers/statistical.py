@@ -63,66 +63,23 @@ class StatisticalChunker(BaseChunker):
 
         :return: List of chunks.
         """
-        # Split the docs that already exceed max_split_tokens to smaller chunks
         if enforce_max_tokens:
-            new_splits = []
-            for split in splits:
-                token_count = tiktoken_length(split)
-                if token_count > self.max_split_tokens:
-                    logger.info(
-                        f"Single document exceeds the maximum token limit "
-                        f"of {self.max_split_tokens}. "
-                        "Splitting to sentences before semantically merging."
-                    )
-                    _splits = self._split(split)
-                    new_splits.extend(_splits)
-                else:
-                    new_splits.append(split)
+            splits = self._split_oversized(splits)
 
-            splits = [split for split in new_splits if split and split.strip()]
-
-        chunks = []
+        chunks: List[Chunk] = []
         last_chunk: Optional[Chunk] = None
         for i in tqdm(range(0, len(splits), batch_size)):
             batch_splits = splits[i : i + batch_size]
             if last_chunk is not None:
                 batch_splits = last_chunk.splits + batch_splits
 
-            encoded_splits = self._encode_documents(batch_splits)
-            similarities = self._calculate_similarity_scores(encoded_splits)
-
-            if self.dynamic_threshold:
-                calculated_threshold = self._find_optimal_threshold(
-                    batch_splits, similarities
-                )
-            else:
-                calculated_threshold = self._static_threshold()
-            split_indices = self._find_split_indices(
-                similarities=similarities, calculated_threshold=calculated_threshold
+            doc_chunks = self._chunk_batch(
+                batch_splits, self._encode_documents(batch_splits)
             )
-
-            doc_chunks = self._split_documents(
-                docs=batch_splits,
-                split_indices=split_indices,
-                similarities=similarities,
-            )
-
-            if len(doc_chunks) > 1:
-                chunks.extend(doc_chunks[:-1])
-                last_chunk = doc_chunks[-1]
-            else:
-                last_chunk = doc_chunks[0]
-
-            if self.plot_chunks:
-                self.plot_similarity_scores(
-                    similarities=similarities,
-                    split_indices=split_indices,
-                    chunks=doc_chunks,
-                    calculated_threshold=calculated_threshold,
-                )
-
-            if self.enable_statistics:
-                print(self.statistics)
+            # The last chunk of a batch may still grow, so it leads the next
+            # one rather than being finished here.
+            chunks.extend(doc_chunks[:-1])
+            last_chunk = doc_chunks[-1]
 
         if last_chunk:
             chunks.append(last_chunk)
@@ -136,6 +93,12 @@ class StatisticalChunker(BaseChunker):
         """Merge splits into chunks using semantic similarity, with optional enforcement
         of maximum token limits per chunk.
 
+        Produces the chunks `_chunk` produces, batching the same way: the chunk
+        a batch leaves open leads the next batch, so a chunk can span a batch
+        boundary. Only the encoding is concurrent, and every split is encoded
+        once — a split carried into the next batch keeps the embedding it
+        already has instead of being paid for twice.
+
         :param splits: Splits to be merged into chunks.
         :param batch_size: Number of splits to process in one batch.
         :param enforce_max_tokens: If True, further split chunks that exceed the maximum
@@ -143,62 +106,93 @@ class StatisticalChunker(BaseChunker):
 
         :return: List of chunks.
         """
-        # Split the docs that already exceed max_split_tokens to smaller chunks
         if enforce_max_tokens:
-            new_splits = []
-            for split in splits:
-                token_count = tiktoken_length(split)
-                if token_count > self.max_split_tokens:
-                    logger.info(
-                        f"Single document exceeds the maximum token limit "
-                        f"of {self.max_split_tokens}. "
-                        "Splitting to sentences before semantically merging."
-                    )
-                    _splits = self._split(split)
-                    new_splits.extend(_splits)
-                else:
-                    new_splits.append(split)
+            splits = self._split_oversized(splits)
 
-            splits = [split for split in new_splits if split and split.strip()]
+        if not splits:
+            return []
 
-        chunks: list[Chunk] = []
+        encoded_batches = await asyncio.gather(
+            *[
+                self._async_encode_documents(splits[i : i + batch_size])
+                for i in range(0, len(splits), batch_size)
+            ]
+        )
+        encoded_splits = np.concatenate(encoded_batches)
 
-        # Step 1: Define process_batch as a separate coroutine function for parallel
-        async def _process_batch(batch_splits: List[str]):
-            encoded_splits = await self._async_encode_documents(batch_splits)
-            return batch_splits, encoded_splits
+        chunks: List[Chunk] = []
+        last_chunk: Optional[Chunk] = None
+        for i in tqdm(range(0, len(splits), batch_size)):
+            # The splits of the chunk carried over are the ones immediately
+            # before `i`, so one slice picks out both the batch's splits and
+            # their embeddings.
+            carried = len(last_chunk.splits) if last_chunk is not None else 0
+            batch_splits = splits[i - carried : i + batch_size]
 
-        # Step 2: Create tasks for parallel execution
-        tasks = []
-        for i in range(0, len(splits), batch_size):
-            batch_splits = splits[i : i + batch_size]
-            tasks.append(_process_batch(batch_splits))
-
-        # Step 3: Await tasks and collect results
-        encoded_split_results = await asyncio.gather(*tasks)
-
-        # Step 4: Sequentially process results
-        for batch_splits, encoded_splits in encoded_split_results:
-            similarities = self._calculate_similarity_scores(encoded_splits)
-            if self.dynamic_threshold:
-                calculated_threshold = self._find_optimal_threshold(
-                    batch_splits, similarities
-                )
-            else:
-                calculated_threshold = self._static_threshold()
-
-            split_indices = self._find_split_indices(
-                similarities=similarities, calculated_threshold=calculated_threshold
+            doc_chunks = self._chunk_batch(
+                batch_splits, encoded_splits[i - carried : i + batch_size]
             )
+            chunks.extend(doc_chunks[:-1])
+            last_chunk = doc_chunks[-1]
 
-            doc_chunks: list[Chunk] = self._split_documents(
-                docs=batch_splits,
-                split_indices=split_indices,
-                similarities=similarities,
-            )
+        if last_chunk:
+            chunks.append(last_chunk)
 
-            chunks.extend(doc_chunks)
         return chunks
+
+    def _split_oversized(self, splits: List[Any]) -> List[Any]:
+        """Sentence-split every split that is already over the token limit."""
+        new_splits = []
+        for split in splits:
+            if tiktoken_length(split) > self.max_split_tokens:
+                logger.info(
+                    f"Single document exceeds the maximum token limit "
+                    f"of {self.max_split_tokens}. "
+                    "Splitting to sentences before semantically merging."
+                )
+                new_splits.extend(self._split(split))
+            else:
+                new_splits.append(split)
+        return [split for split in new_splits if split and split.strip()]
+
+    def _chunk_batch(
+        self, batch_splits: List[Any], encoded_splits: np.ndarray
+    ) -> List[Chunk]:
+        """Cut one batch of already-encoded splits into chunks.
+
+        The sync and the async path both come through here, so where a batch
+        is cut cannot drift between them.
+        """
+        similarities = self._calculate_similarity_scores(encoded_splits)
+
+        if self.dynamic_threshold:
+            calculated_threshold = self._find_optimal_threshold(
+                batch_splits, similarities
+            )
+        else:
+            calculated_threshold = self._static_threshold()
+        split_indices = self._find_split_indices(
+            similarities=similarities, calculated_threshold=calculated_threshold
+        )
+
+        doc_chunks = self._split_documents(
+            docs=batch_splits,
+            split_indices=split_indices,
+            similarities=similarities,
+        )
+
+        if self.plot_chunks:
+            self.plot_similarity_scores(
+                similarities=similarities,
+                split_indices=split_indices,
+                chunks=doc_chunks,
+                calculated_threshold=calculated_threshold,
+            )
+
+        if self.enable_statistics:
+            print(self.statistics)
+
+        return doc_chunks
 
     @time_it
     def __call__(self, docs: List[str], batch_size: int = 64) -> List[List[Chunk]]:
@@ -291,7 +285,10 @@ class StatisticalChunker(BaseChunker):
 
         return np.array(embeddings)
 
-    @async_retry_with_timeout(retries=3, timeout=5)
+    # One attempt covers up to 2000 documents against a remote encoder, so the
+    # budget is a minute rather than the five seconds it used to be. A stall
+    # that outlasts all three attempts is raised, not returned as no embeddings.
+    @async_retry_with_timeout(retries=3, timeout=60)
     @time_it
     async def _async_encode_documents(self, docs: List[str]) -> np.ndarray:
         """
