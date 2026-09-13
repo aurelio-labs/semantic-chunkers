@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Union
+from typing import List, Optional, Union
 
 import regex
 
@@ -14,22 +14,28 @@ class RegexChunker(BaseChunker):
         self,
         splitter: RegexSplitter = RegexSplitter(),
         max_chunk_tokens: int = 300,
-        delimiters: List[Union[str, regex.Pattern]] = [],
+        delimiters: Optional[List[Union[str, regex.Pattern]]] = None,
     ):
         super().__init__(name="regex_chunker", encoder=None, splitter=splitter)
         self.splitter: RegexSplitter = splitter
         self.max_chunk_tokens = max_chunk_tokens
-        self.delimiters = delimiters
+        self.delimiters: List[Union[str, regex.Pattern]] = delimiters or []
 
     def __call__(self, docs: list[str]) -> List[List[Chunk]]:
-        chunks = []
-        current_chunk = Chunk(
-            splits=[],
-            metadata={},
-        )
-        current_chunk.token_count = 0
+        """Chunk each document separately, returning one list of chunks per document.
+
+        ```python
+        chunks_by_doc = RegexChunker()(["First document.", "Second document."])
+        len(chunks_by_doc)  # 2
+        ```
+        """
+        docs_chunks = []
 
         for doc in docs:
+            chunks: List[Chunk] = []
+            current_chunk = Chunk(splits=[], metadata={})
+            current_chunk.token_count = 0
+
             sentences = self.splitter(doc, delimiters=self.delimiters)
             for sentence in sentences:
                 sentence_token_count = text.tiktoken_length(sentence)
@@ -49,11 +55,13 @@ class RegexChunker(BaseChunker):
                     current_chunk.token_count = 0
                 current_chunk.token_count += sentence_token_count
 
-        # Last chunk
-        if current_chunk.splits:
-            chunks.append(current_chunk)
+            # Last chunk of this document.
+            if current_chunk.splits:
+                chunks.append(current_chunk)
 
-        return [chunks]
+            docs_chunks.append(chunks)
+
+        return docs_chunks
 
     async def acall(self, docs: list[str]) -> List[List[Chunk]]:
         chunks = await asyncio.to_thread(self.__call__, docs)
