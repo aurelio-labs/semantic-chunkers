@@ -2,9 +2,10 @@
 counter so cost can be reported alongside quality.
 
 The cache is keyed on (model name, namespace, text). The runner namespaces
-by variant, so within one run every variant pays its own embedding cost and
-the order of variants cannot change a number; across runs, an unchanged
-variant is served from the cache.
+by variant *and document*, so within one run every document pays its own
+embedding cost and neither the order of variants nor a document's position in
+the suite can change a number; across runs, an unchanged variant is served
+from the cache.
 """
 
 from __future__ import annotations
@@ -109,6 +110,16 @@ class CachedSentenceTransformerEncoder(DenseEncoder):
 
     async def acall(self, docs: List[str]) -> List[List[float]]:
         return self(docs)
+
+    def use_namespace(self, namespace: str) -> None:
+        """Switch the cache partition this encoder reads and writes.
+
+        The runner moves the encoder to a fresh namespace for each document so
+        that a sentence shared with an earlier document is embedded again
+        rather than served free. Without this, a per-document timing measures
+        how late in the suite the document sits, not how hard it is.
+        """
+        self.namespace = namespace
 
     def warm_up(self) -> None:
         """Load the model so its start-up cost is not charged to the first variant."""

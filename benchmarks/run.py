@@ -39,12 +39,13 @@ DIRECTIONS = {
     "windowdiff": "down",
     "windowdiff_p50": "down",
     "windowdiff_p95": "down",
-    # chunker work plus the embedding of the variant's unique texts, in its own
-    # cache namespace; the cache dedupes texts repeated across documents, so
-    # this is not what every request would cost. See encoder_texts_requested.
+    # chunker work plus embedding, in a cache namespace per variant and
+    # document, so no variant and no document is served free by an earlier
+    # one. Texts repeated within a single document still dedupe.
     "wall_s": "down",
+    # per document, on equal footing: every document embeds its own text.
     "doc_s_p50": "down",
-    "doc_s_p95": "down",
+    "doc_s_p95": "down",  # the slow tail
     "encoder_requests": "down",
     "encoder_texts_requested": "down",
     "encoder_model_calls": None,
@@ -162,7 +163,14 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
     n_chunks = 0
     chunk_tokens: list[int | None] = []
     t0 = time.perf_counter()
-    for doc in docs:
+    for index, doc in enumerate(docs):
+        if encoder is not None:
+            # Each document gets its own cache partition, so it pays for its
+            # own embeddings whatever the documents before it embedded. The
+            # synthetic suite reuses source articles, so without this the
+            # first few documents carry almost all the embedding cost and
+            # doc_s_p50/doc_s_p95 rank documents by position, not difficulty.
+            encoder.use_namespace(f"{variant['name']}/{index}")
         d0 = time.perf_counter()
         result = chunker([doc.text])
         doc_s.append(time.perf_counter() - d0)
