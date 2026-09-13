@@ -210,6 +210,34 @@ def test_a_success_with_no_embeddings_is_an_error_not_a_crash():
         encoder_with(empty)(["a"])
 
 
+def test_embeddings_without_an_index_keep_the_order_they_arrived_in():
+    """An OpenAI-compatible endpoint need not send the index OpenAI sends."""
+
+    def unindexed(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"data": [{"embedding": [0.0]}, {"embedding": [1.0]}]},
+        )
+
+    assert encoder_with(unindexed)(["a", "b"]) == [[0.0], [1.0]]
+
+
+def test_a_response_whose_items_carry_no_embedding_is_an_error_not_a_crash():
+    def no_embeddings(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": [{"index": 0, "object": "embedding"}]})
+
+    with pytest.raises(OpenAIEncoderError, match="no embeddings"):
+        encoder_with(no_embeddings)(["a"])
+
+
+def test_a_response_whose_data_is_not_objects_is_an_error_not_a_crash():
+    def bare_vectors(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": [[0.0, 1.0]]})
+
+    with pytest.raises(OpenAIEncoderError, match="no embeddings"):
+        encoder_with(bare_vectors)(["a"])
+
+
 def test_the_async_path_returns_what_the_sync_path_returns():
     encoder = encoder_with(embeddings_response, batch_size=2)
 

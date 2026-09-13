@@ -203,12 +203,17 @@ def _vectors(response: httpx.Response) -> List[List[float]]:
             f"The embeddings endpoint returned no JSON: {response.text[:200]!r}"
         ) from error
     data = body.get("data") if isinstance(body, dict) else None
-    if not isinstance(data, list):
+    if not isinstance(data, list) or not all(
+        isinstance(item, dict) and "embedding" in item for item in data
+    ):
         raise OpenAIEncoderError(
             f"The embeddings endpoint returned no embeddings: {response.text[:200]!r}"
         )
-    # The response carries an index per embedding and need not be ordered.
-    return [item["embedding"] for item in sorted(data, key=lambda item: item["index"])]
+    # The response carries an index per embedding and need not be ordered. An
+    # OpenAI-compatible endpoint that omits the index is taken in the order it
+    # sent, rather than failing on the missing key.
+    ordered = sorted(enumerate(data), key=lambda pair: pair[1].get("index", pair[0]))
+    return [item["embedding"] for _, item in ordered]
 
 
 def _error_message(response: httpx.Response) -> str:
