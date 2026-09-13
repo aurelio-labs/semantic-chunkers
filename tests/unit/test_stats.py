@@ -7,7 +7,9 @@ present, to check a plot is still drawn.
 """
 
 import inspect
+import subprocess
 import sys
+import textwrap
 from pathlib import Path
 from types import ModuleType
 from unittest.mock import MagicMock, Mock
@@ -254,3 +256,32 @@ def test_statistical_chunker_does_not_import_matplotlib():
 
     assert "matplotlib" not in source
     assert "pyplot" not in source
+
+
+def test_importing_the_package_never_requests_matplotlib():
+    """`import semantic_chunkers` must not pull matplotlib in. VISION.md:42.
+
+    ``statistical.py`` imports ``semantic_chunkers.stats`` eagerly for
+    ``ChunkStatistics``, so a module-level matplotlib import anywhere in the
+    stats module would break installs without the extra. A tripwire on
+    ``sys.meta_path`` catches that whether or not matplotlib is installed.
+    """
+    script = textwrap.dedent(
+        """
+        import sys
+
+        class Tripwire:
+            def find_spec(self, name, path=None, target=None):
+                if name.split(".")[0] == "matplotlib":
+                    raise AssertionError("eagerly imported " + name)
+                return None
+
+        sys.meta_path.insert(0, Tripwire())
+        import semantic_chunkers
+        import semantic_chunkers.stats
+        """
+    )
+
+    done = subprocess.run([sys.executable, "-c", script], capture_output=True)
+
+    assert done.returncode == 0, done.stderr.decode()
