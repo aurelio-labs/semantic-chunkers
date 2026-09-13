@@ -206,3 +206,24 @@ def test_the_same_suite_twice_with_different_parameters_does_not_share_a_cache(
 
     namespaces = set(encoder._model.namespaces)
     assert len(namespaces) == 4, "a differing seed must not reuse the earlier partition"
+
+
+def test_a_scoring_only_knob_does_not_discard_the_embedding_cache(
+    monkeypatch, fake_encoder
+):
+    """``tolerance`` reaches the scorer only, so changing it must not re-embed."""
+    encoder = fake_encoder("consecutive/stub")
+    monkeypatch.setattr(run, "make_encoder", lambda spec, namespace: encoder)
+    variant = {
+        "name": "consecutive/stub",
+        "chunker": "consecutive",
+        "params": {"score_threshold": 0.45},
+    }
+    base = {"name": "synthetic-boundaries", "n_docs": 2, "seed": 0}
+    run.run_synthetic(variant, {**base, "tolerance": 1})
+    first = set(encoder._model.namespaces)
+    run.run_synthetic(variant, {**base, "tolerance": 2})
+
+    assert set(encoder._model.namespaces) == first, (
+        "tolerance shapes no document, so it must not open new cache partitions"
+    )

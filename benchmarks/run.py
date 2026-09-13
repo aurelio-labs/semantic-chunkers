@@ -153,8 +153,13 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
     )
     # The suite's parameters, not just its name: a config may list the same
     # suite twice with different seeds or sizes, and those runs must not share
-    # a cache partition any more than two different suites may.
-    suite_name = f"{suite.get('name', 'suite')}@{config_hash(suite)}"
+    # a cache partition any more than two different suites may. Only the keys
+    # that shape the documents count, so changing a scoring-only knob such as
+    # tolerance does not throw the embedding cache away.
+    shaping = {
+        k: suite.get(k) for k in ("n_docs", "min_sources", "max_sources", "seed")
+    }
+    suite_name = f"{suite.get('name', 'suite')}@{config_hash(shaping)}"
     encoder = (
         make_encoder(
             variant.get("encoder", {}), namespace=f"{suite_name}/{variant['name']}"

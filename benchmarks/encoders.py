@@ -2,7 +2,7 @@
 counter so cost can be reported alongside quality.
 
 The cache is keyed on (model name, namespace, text). The runner namespaces
-by variant *and document*, so within one run every document pays its own
+by suite, variant and document, so within one run every document pays its own
 embedding cost and neither the order of variants nor a document's position in
 the suite can change a number; across runs, an unchanged variant is served
 from the cache.
