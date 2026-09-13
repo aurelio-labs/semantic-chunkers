@@ -137,6 +137,7 @@ def hbar_chart(
     labels: Sequence[str],
     series: Sequence[Series],
     *,
+    title: str,
     fmt: Callable[[float], str],
     scale_max: float | None = None,
     better: str = "up",
@@ -147,6 +148,8 @@ def hbar_chart(
 ) -> str:
     """A horizontal bar chart.
 
+    ``title`` names the graphic for a screen reader, which otherwise meets a
+    bare ``role="img"`` with nothing to announce.
     ``ranges`` draws a tone-on-tone spread line per row on top of the first
     series' bar; ``markers`` draws a tick per row in ``marker_slot``'s colour.
     A ``None`` value is not measured: it draws an em dash, not a zero bar.
@@ -172,7 +175,7 @@ def hbar_chart(
     parts: list[str] = [
         f'<svg class="chart" viewBox="0 0 {CHART_W} {height:.0f}" '
         f'width="100%" height="{height:.0f}" role="img" '
-        f'preserveAspectRatio="xMinYMin meet">'
+        f'aria-label="{esc(title)}" preserveAspectRatio="xMinYMin meet">'
     ]
     for tick in ticks:
         x = x_of(tick)
@@ -273,10 +276,14 @@ def line_chart(
     x_labels: Sequence[str],
     series: Sequence[Series],
     *,
+    title: str,
     fmt: Callable[[float], str],
     scale_max: float | None = None,
 ) -> str:
-    """Boundary F1 across runs: one 2px line per variant, end dot and end label."""
+    """Boundary F1 across runs: one 2px line per variant, end dot and end label.
+
+    ``title`` names the graphic for a screen reader, as in ``hbar_chart``.
+    """
     left, right_pad, top_pad = 44.0, 150.0, 12.0
     plot_h, height = 190.0, 190.0 + TICK_BAND + 12
     plot_w = CHART_W - left - right_pad
@@ -297,7 +304,7 @@ def line_chart(
     parts: list[str] = [
         f'<svg class="chart" viewBox="0 0 {CHART_W} {height:.0f}" '
         f'width="100%" height="{height:.0f}" role="img" '
-        f'preserveAspectRatio="xMinYMin meet">'
+        f'aria-label="{esc(title)}" preserveAspectRatio="xMinYMin meet">'
     ]
     for tick in ticks:
         y = y_of(tick)
@@ -545,6 +552,7 @@ def build_html(
                 + hbar_chart(
                     names,
                     [Series("mean F1", col("boundary_f1"), 1)],
+                    title="Boundary F1 by variant, mean with p05–p95 spread",
                     fmt=fmt_rate,
                     scale_max=1.0,
                     ranges=list(zip(col("boundary_f1_p05"), col("boundary_f1_p95"))),
@@ -566,6 +574,7 @@ def build_html(
                         Series("Pk p50", col("pk_p50"), 1),
                         Series("Pk p95", col("pk_p95"), 2),
                     ],
+                    title="Pk by variant, median document and p95 tail",
                     fmt=fmt_rate,
                     scale_max=error_scale,
                     better="down",
@@ -578,6 +587,7 @@ def build_html(
                         Series("WindowDiff p50", col("windowdiff_p50"), 1),
                         Series("WindowDiff p95", col("windowdiff_p95"), 2),
                     ],
+                    title="WindowDiff by variant, median document and p95 tail",
                     fmt=fmt_rate,
                     scale_max=error_scale,
                     better="down",
@@ -594,6 +604,7 @@ def build_html(
                 + hbar_chart(
                     names,
                     [Series("p50", col("doc_s_p50"), 1)],
+                    title="Time per document by variant, p50 bar with p95 tick",
                     fmt=fmt_seconds,
                     better="down",
                     markers=col("doc_s_p95"),
@@ -608,6 +619,7 @@ def build_html(
                 hbar_chart(
                     names,
                     [Series("texts requested", col("encoder_texts_requested"), 1)],
+                    title="Encoder texts requested by variant, whole suite",
                     fmt=fmt_count,
                     better="down",
                 ),
@@ -706,7 +718,13 @@ def trend_card(history: Sequence[dict[str, Any]], suite_name: str) -> str:
         "Boundary F1 over runs — higher is better",
         f"The last {len(runs)} recorded run(s), oldest first, labelled by commit.",
         legend([(truncate(s.name, 22), s.slot) for s in series])
-        + line_chart(labels, series, fmt=fmt_rate, scale_max=1.0)
+        + line_chart(
+            labels,
+            series,
+            title="Boundary F1 over the last recorded runs, one line per variant",
+            fmt=fmt_rate,
+            scale_max=1.0,
+        )
         + note,
     )
 
