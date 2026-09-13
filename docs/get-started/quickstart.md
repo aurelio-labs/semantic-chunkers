@@ -4,7 +4,7 @@ Install the library:
 pip install -qU semantic-chunkers
 ```
 
-Encoders come from Semantic Router, which installs alongside it.
+That is the whole install. The OpenAI encoder comes with it.
 
 ## Pick an encoder and a chunker
 
@@ -12,8 +12,7 @@ The encoder turns sentences into vectors. The chunker uses those vectors to deci
 
 ```python
 import os
-from semantic_chunkers import StatisticalChunker
-from semantic_router.encoders import OpenAIEncoder
+from semantic_chunkers import OpenAIEncoder, StatisticalChunker
 
 os.environ["OPENAI_API_KEY"] = "<YOUR_API_KEY>"
 
@@ -21,7 +20,7 @@ encoder = OpenAIEncoder()
 chunker = StatisticalChunker(encoder=encoder)
 ```
 
-Any Semantic Router encoder works here — `CohereEncoder`, `HuggingFaceEncoder`, `FastEmbedEncoder`, and so on.
+Prefer a local model, another provider, or a function of your own? See [encoders](encoders). Anything with `__call__(docs)` and `acall(docs)` works, so encoders from other libraries — Semantic Router's included — plug in unchanged.
 
 ## Chunk a document
 

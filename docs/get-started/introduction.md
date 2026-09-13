@@ -11,7 +11,7 @@ The library splits a document into sentences, embeds them, and looks at how simi
 - **`CumulativeChunker`** — accumulates sentences and compares each new one against everything gathered so far. More stable and noise-resistant, but the most expensive in time and, with API encoders, money.
 - **`RegexChunker`** — no embeddings at all. Splits on delimiters up to a token budget. Fast and free, for when semantics don't matter.
 
-The semantic chunkers take an encoder from [Semantic Router](../../semantic-router), so you can use OpenAI, Cohere, Hugging Face, FastEmbed, and the rest.
+The semantic chunkers take any [encoder](encoders) — the OpenAI one that ships with the library, a local sentence-transformers model, an embedding function of your own, or an encoder from another library such as [Semantic Router](../../semantic-router).
 
 ## Start here
 

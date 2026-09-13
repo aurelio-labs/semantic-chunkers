@@ -14,7 +14,6 @@ from typing import Any, List
 
 import numpy as np
 import pytest
-from semantic_router.encoders.base import DenseEncoder
 
 from semantic_chunkers import (
     BaseSplitter,
@@ -36,7 +35,7 @@ DOC = (
 )
 
 
-class TopicEncoder(DenseEncoder):
+class TopicEncoder:
     """Deterministic stand-in for an embedding model.
 
     Texts that start with the same word embed identically and anything else is
@@ -46,7 +45,6 @@ class TopicEncoder(DenseEncoder):
 
     name: str = "topic-encoder"
     score_threshold: float = 0.45
-    type: str = "fake"
 
     def __call__(self, docs: List[str]) -> List[List[float]]:
         return [self._vector(doc) for doc in docs]
@@ -62,12 +60,11 @@ class TopicEncoder(DenseEncoder):
         return list(vec / np.linalg.norm(vec))
 
 
-class FrameEncoder(DenseEncoder):
+class FrameEncoder:
     """Stands in for a vision encoder: embeds frames, never text."""
 
     name: str = "frame-encoder"
     score_threshold: float = 0.45
-    type: str = "fake"
 
     def __call__(self, docs: List[Any]) -> List[List[float]]:
         return [[float(np.mean(frame)), 1.0 - float(np.mean(frame))] for frame in docs]

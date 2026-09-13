@@ -5,6 +5,56 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
 ## Unreleased
 
 ### Breaking
+- `semantic-router` is no longer a dependency. An encoder is now anything with `__call__(docs)` and `async acall(docs)` — the `DenseEncoder` protocol — so an existing semantic-router encoder object still works unchanged, by duck typing. What breaks is the import: `pip install semantic-chunkers` no longer installs semantic-router, so a script that imported an encoder from it must either install it as well or use the first-party `OpenAIEncoder`.
+
+  ```python
+  # before
+  from semantic_router.encoders import OpenAIEncoder
+  from semantic_chunkers import StatisticalChunker
+
+  encoder = OpenAIEncoder(name="text-embedding-3-small", openai_api_key="sk-...")
+  chunker = StatisticalChunker(encoder=encoder)
+
+  # after: the encoder ships with the library
+  from semantic_chunkers import OpenAIEncoder, StatisticalChunker
+
+  encoder = OpenAIEncoder(name="text-embedding-3-small", api_key="sk-...")
+  chunker = StatisticalChunker(encoder=encoder)
+
+  # or keep the semantic-router one: pip install semantic-router, and it still plugs in
+  ```
+
+- `OpenAIEncoder` is first-party and calls the embeddings endpoint over `httpx`, so the `openai` SDK is not involved. Its constructor arguments are renamed to drop the `openai_` prefix, and it no longer carries a per-model default `score_threshold`.
+
+  ```python
+  # before (semantic-router)
+  OpenAIEncoder(openai_api_key=..., openai_base_url=..., openai_org_id=...)
+
+  # after
+  OpenAIEncoder(api_key=..., base_url=..., org_id=...)
+  ```
+
+- `BaseChunker` no longer substitutes a `DenseEncoder(name="default")` when `encoder` is omitted. `chunker.encoder` is `None` instead, and a chunker that needs one still requires it. The substituted encoder could not encode anything, so it turned a missing argument into a failure deep inside a similarity calculation. Passing something that is not callable — a model name, say — now raises `EncoderError` at construction.
+
+  ```python
+  # before
+  BaseChunker(name="mine", splitter=RegexSplitter()).encoder.name  # 'default'
+
+  # after
+  BaseChunker(name="mine", splitter=RegexSplitter()).encoder       # None
+  ```
+
+- `ConsecutiveChunker` and `CumulativeChunker` no longer write `score_threshold` onto the encoder they are given. They read their own `score_threshold`, so the write only ever changed the threshold of any other chunker sharing that encoder object.
+
+  ```python
+  encoder = OpenAIEncoder()
+  ConsecutiveChunker(encoder=encoder, score_threshold=0.9)
+
+  # before: encoder.score_threshold == 0.9, and a StatisticalChunker sharing
+  #         this encoder with dynamic_threshold=False silently picked it up
+  # after:  encoder.score_threshold is untouched
+  ```
+
 - `Chunk.content` is the exact text of the document the chunk covers, not the splits joined with a space, and it is a field rather than a property. `Chunk.start` and `Chunk.end` are its character offsets into that document. The splits are stripped, so the old join lost every paragraph break, tab and repeated space and the chunks of a document did not join back into the document. A chunk the library cannot place in a source document — one built by hand, or one whose splits are video frames rather than text — has all three set to `None`, where `content` used to be a `TypeError` for frames and a space-join for everything else.
 
   ```python
@@ -109,8 +159,14 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
   ```
 
 ### Added
+- `DenseEncoder`, a protocol describing what a chunker needs from an encoder, and `CallableEncoder`, which adapts any `docs -> vectors` callable to it and supplies the async path by running the callable in a thread.
+- `OpenAIEncoder`, in the core with no extra: batching, retries on 429 and 5xx honouring `Retry-After`, and a `base_url` so Azure and OpenAI-compatible endpoints work.
+- `LocalEncoder`, sentence-transformers behind a new `local` extra.
+- `EncoderError`. Reaching for the async path of an encoder with no working `acall` now raises it with the encoder's name and the fix, instead of surfacing a `NotImplementedError` from inside another package (#32).
 - `BaseSplitter.spans(doc)` and `RegexSplitter.spans(doc, delimiters)` return the `(start, end)` offsets of each split in the document, which is where `Chunk.content` and the chunk offsets come from. The default implementation locates the splits of any splitter whose `__call__` returns verbatim pieces of the document, so an existing custom splitter gets offsets without a change; one that rewrites its text returns no spans and its chunks carry no offsets.
 
 ### Changed
+- `import semantic_chunkers` no longer imports `semantic_router`, and makes no network request. Measured on this repo's CI runner, import time drops from roughly 1.6 s to 0.19 s. `OpenAIEncoder` and `LocalEncoder` are imported on first use, so a local-only user never pays for `httpx` and an API user never imports torch.
+- Core dependencies: `semantic-router` removed; `httpx>=0.27,<1` added for `OpenAIEncoder`; `tqdm>=4.66` declared, which the chunkers always imported but only got transitively through semantic-router.
 - `semantic_chunkers.__version__` is read from the installed package metadata instead of a hard-coded string that had drifted from `pyproject.toml`.
 - The mutable default argument `delimiters=[]` on `RegexChunker.__init__` and `RegexSplitter.__call__` is now `None`. The first call to `RegexSplitter` with no delimiters used to append the compiled sentence pattern into the shared signature default, where it stayed for the life of the process.

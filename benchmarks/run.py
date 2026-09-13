@@ -105,8 +105,8 @@ def make_chunker(
     if kind == "regex":
         return RegexChunker(**params)
     if encoder is None:
-        # BaseChunker would otherwise substitute a bare DenseEncoder that
-        # cannot encode, and the variant would fail deep in the chunker.
+        # Caught here rather than deep inside the chunker, where the failure
+        # would name a similarity calculation instead of the missing encoder.
         raise ValueError(f"chunker {kind} needs an encoder")
     if kind == "statistical":
         return StatisticalChunker(encoder=encoder, **params)
