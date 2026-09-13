@@ -27,12 +27,16 @@ permissions:
   id-token: write
   actions: read
 
-concurrency:
-  group: visionary-respond-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: false
-
 jobs:
   respond:
+    # The group is on the job, not the workflow. A comment by the agents
+    # themselves still creates a run; at workflow level that run would join
+    # the group, cancel a pending human-triggered one, and then skip itself,
+    # silently dropping the request. A job skipped by the condition below
+    # never claims the group.
+    concurrency:
+      group: visionary-respond-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: false
     if: >-
       github.event.sender.login != 'claude[bot]' &&
       github.event.sender.login != 'github-actions[bot]'
