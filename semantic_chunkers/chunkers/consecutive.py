@@ -1,10 +1,11 @@
 from typing import Any, List
 
 import numpy as np
-from semantic_router.encoders.base import DenseEncoder
+from pydantic import SkipValidation
 from tqdm.auto import tqdm
 
 from semantic_chunkers.chunkers.base import BaseChunker
+from semantic_chunkers.encoders import DenseEncoder, acall_encoder
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 from semantic_chunkers.splitters.regex import RegexSplitter
@@ -15,7 +16,7 @@ class ConsecutiveChunker(BaseChunker):
     Called "consecutive sim chunker" because we check the similarities of consecutive document embeddings (compare ith to i+1th document embedding).
     """
 
-    encoder: DenseEncoder
+    encoder: SkipValidation[DenseEncoder]
 
     def __init__(
         self,
@@ -25,7 +26,6 @@ class ConsecutiveChunker(BaseChunker):
         score_threshold: float = 0.45,
     ):
         super().__init__(name=name, encoder=encoder, splitter=splitter)
-        encoder.score_threshold = score_threshold
         self.score_threshold = score_threshold
 
     def _chunk(self, splits: List[Any], batch_size: int = 64) -> List[Chunk]:
@@ -35,7 +35,7 @@ class ConsecutiveChunker(BaseChunker):
 
         :return: list of chunks.
         """
-        split_embeds = []
+        split_embeds: List[Any] = []
         num_splits = len(splits)
         for i in tqdm(range(0, num_splits, batch_size)):
             split_embeds.extend(self.encoder(splits[i : i + batch_size]))
@@ -69,10 +69,12 @@ class ConsecutiveChunker(BaseChunker):
 
         :return: list of chunks.
         """
-        split_embeds = []
+        split_embeds: List[Any] = []
         num_splits = len(splits)
         for i in tqdm(range(0, num_splits, batch_size)):
-            split_embeds.extend(await self.encoder.acall(splits[i : i + batch_size]))
+            split_embeds.extend(
+                await acall_encoder(self.encoder, splits[i : i + batch_size])
+            )
         norm_embeds = split_embeds / np.linalg.norm(split_embeds, axis=1, keepdims=True)
         sim_matrix = np.matmul(norm_embeds, norm_embeds.T)
         chunks = []

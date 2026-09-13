@@ -14,9 +14,8 @@ from unittest.mock import MagicMock, Mock
 
 import numpy as np
 import pytest
-from semantic_router.encoders.openai import OpenAIEncoder
 
-from semantic_chunkers import StatisticalChunker
+from semantic_chunkers import OpenAIEncoder, StatisticalChunker
 from semantic_chunkers.chunkers import statistical
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.stats import (
@@ -36,7 +35,7 @@ SENTENCES = ["Doc one about something.", "Doc two about something."]
 @pytest.fixture
 def chunker():
     """A ``StatisticalChunker`` whose encoder returns a fixed embedding."""
-    encoder = OpenAIEncoder(name=ENCODER_NAME, openai_api_key="a")
+    encoder = OpenAIEncoder(name=ENCODER_NAME, api_key="a")
     chunker = StatisticalChunker(encoder=encoder)
     chunker.encoder = Mock(side_effect=lambda docs: np.array([[1, 0] for _ in docs]))
     return chunker

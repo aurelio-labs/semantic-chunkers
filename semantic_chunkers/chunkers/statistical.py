@@ -2,10 +2,11 @@ import asyncio
 from typing import Any, List, Optional
 
 import numpy as np
-from semantic_router.encoders.base import DenseEncoder
+from pydantic import SkipValidation
 from tqdm.auto import tqdm
 
 from semantic_chunkers.chunkers.base import BaseChunker
+from semantic_chunkers.encoders import DenseEncoder, acall_encoder
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 from semantic_chunkers.splitters.regex import RegexSplitter
@@ -19,7 +20,7 @@ from semantic_chunkers.utils.text import (
 
 
 class StatisticalChunker(BaseChunker):
-    encoder: DenseEncoder
+    encoder: SkipValidation[DenseEncoder]
 
     def __init__(
         self,
@@ -169,11 +170,7 @@ class StatisticalChunker(BaseChunker):
                 batch_splits, similarities
             )
         else:
-            calculated_threshold = (
-                self.encoder.score_threshold
-                if self.encoder.score_threshold
-                else self.DEFAULT_THRESHOLD
-            )
+            calculated_threshold = self._static_threshold()
         split_indices = self._find_split_indices(
             similarities=similarities, calculated_threshold=calculated_threshold
         )
@@ -255,6 +252,15 @@ class StatisticalChunker(BaseChunker):
                 raise ValueError("The document must be a string.")
         return all_chunks
 
+    def _static_threshold(self) -> float:
+        """The threshold used when ``dynamic_threshold`` is off.
+
+        The encoder protocol does not ask for a ``score_threshold``, so an
+        encoder that carries one still decides the threshold and one that does
+        not falls back to the default.
+        """
+        return getattr(self.encoder, "score_threshold", None) or self.DEFAULT_THRESHOLD
+
     @time_it
     def _encode_documents(self, docs: List[str]) -> np.ndarray:
         """
@@ -266,7 +272,7 @@ class StatisticalChunker(BaseChunker):
         :return: A numpy array of embeddings for the given documents.
         """
         max_docs_per_batch = 2000
-        embeddings = []
+        embeddings: List[Any] = []
 
         for i in range(0, len(docs), max_docs_per_batch):
             batch_docs = docs[i : i + max_docs_per_batch]
@@ -294,12 +300,12 @@ class StatisticalChunker(BaseChunker):
         :return: A numpy array of embeddings for the given documents.
         """
         max_docs_per_batch = 2000
-        embeddings = []
+        embeddings: List[Any] = []
 
         for i in range(0, len(docs), max_docs_per_batch):
             batch_docs = docs[i : i + max_docs_per_batch]
             try:
-                batch_embeddings = await self.encoder.acall(batch_docs)
+                batch_embeddings = await acall_encoder(self.encoder, batch_docs)
                 embeddings.extend(batch_embeddings)
             except Exception as e:
                 logger.error(f"Error encoding documents {batch_docs}: {e}")

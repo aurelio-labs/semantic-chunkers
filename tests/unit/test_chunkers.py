@@ -3,14 +3,15 @@ from unittest.mock import AsyncMock, Mock, create_autospec
 
 import numpy as np
 import pytest
-from semantic_router.encoders.base import DenseEncoder
-from semantic_router.encoders.openai import OpenAIEncoder
 
 from semantic_chunkers import (
     BaseChunker,
     BaseSplitter,
     ConsecutiveChunker,
     CumulativeChunker,
+    DenseEncoder,
+    EncoderError,
+    OpenAIEncoder,
     RegexSplitter,
     StatisticalChunker,
 )
@@ -25,7 +26,7 @@ def test_consecutive_sim_splitter():
 
     encoder = OpenAIEncoder(
         name=ENCODER_NAME,
-        openai_api_key="a",
+        api_key="a",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
     splitter = ConsecutiveChunker(encoder=encoder, score_threshold=0.9)
@@ -60,7 +61,7 @@ async def test_async_consecutive_sim_splitter():
 
     encoder = OpenAIEncoder(
         name=ENCODER_NAME,
-        openai_api_key="a",
+        api_key="a",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
     splitter = ConsecutiveChunker(encoder=encoder, score_threshold=0.9)
@@ -96,7 +97,7 @@ def test_cumulative_sim_splitter():
     # Instantiate the CumulativeSimSplitter with the mock encoder
     encoder = OpenAIEncoder(
         name=ENCODER_NAME,
-        openai_api_key="a",
+        api_key="a",
     )
     splitter = CumulativeChunker(encoder=encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
@@ -132,7 +133,7 @@ async def test_async_cumulative_sim_splitter():
     # Instantiate the CumulativeSimSplitter with the mock encoder
     encoder = OpenAIEncoder(
         name=ENCODER_NAME,
-        openai_api_key="a",
+        api_key="a",
     )
     splitter = CumulativeChunker(encoder=encoder, score_threshold=0.9)
     splitter.encoder = mock_encoder
@@ -186,7 +187,7 @@ def test_statistical_chunker():
 
     encoder = OpenAIEncoder(
         name=ENCODER_NAME,
-        openai_api_key="a",
+        api_key="a",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
     splitter = StatisticalChunker(encoder=encoder)
@@ -219,7 +220,7 @@ async def test_async_statistical_chunker():
 
     encoder = OpenAIEncoder(
         name=ENCODER_NAME,
-        openai_api_key="a",
+        api_key="a",
     )
     # Instantiate the ConsecutiveSimSplitter with the mock encoder
     splitter = StatisticalChunker(encoder=encoder)
@@ -253,9 +254,7 @@ async def test_async_statistical_chunker_raises_when_the_encoder_times_out():
     mock_encoder = Mock()
     mock_encoder.acall = AsyncMock(side_effect=asyncio.TimeoutError)
 
-    chunker = StatisticalChunker(
-        encoder=OpenAIEncoder(name=ENCODER_NAME, openai_api_key="a")
-    )
+    chunker = StatisticalChunker(encoder=OpenAIEncoder(name=ENCODER_NAME, api_key="a"))
     chunker.encoder = mock_encoder
 
     with pytest.raises(asyncio.TimeoutError):
@@ -281,10 +280,18 @@ def test_base_splitter_call_not_implemented(base_splitter_instance):
         base_splitter_instance(["document"])
 
 
-def test_base_chunker_substitutes_default_encoder_when_omitted():
+def test_base_chunker_leaves_the_encoder_unset_when_omitted():
+    """A chunker that needs no encoder gets none, not one that cannot encode."""
     chunker = BaseChunker(name="t", splitter=RegexSplitter())
-    assert chunker.encoder is not None
-    assert chunker.encoder.name == "default"
+    assert chunker.encoder is None
+
+
+def test_base_chunker_rejects_an_encoder_that_cannot_be_called():
+    """A model name where an encoder belongs is caught at construction."""
+    with pytest.raises(EncoderError, match="must be callable"):
+        BaseChunker(
+            name="t", encoder="text-embedding-3-small", splitter=RegexSplitter()
+        )
 
 
 def test_regex_splitter_accepts_custom_pattern():

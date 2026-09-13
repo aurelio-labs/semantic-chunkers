@@ -13,10 +13,12 @@ dependencies = [
     "colorama>=0.4.6",
     "regex>=2023.12.25",
     "tiktoken>=0.7.0,<1.0.0",
-    "semantic-router>=0.1.0",
+    "httpx>=0.27,<1",
+    "tqdm>=4.66",
 ]
 
 [project.optional-dependencies]
+local = ["sentence-transformers>=3.0.0"]
 stats = ["matplotlib>=3.8.3"]
 bench = ["sentence-transformers>=3.0.0"]
 dev = [
@@ -61,3 +63,9 @@ ignore_missing_imports = true
 explicit_package_bases = true
 namespace_packages = true
 mypy_path = "."
+
+[tool.pytest.ini_options]
+# Tests that call a paid API are marked `live` and stay out of the default
+# suite, as VISION.md requires. Run them by hand with `-m live`.
+addopts = "-m 'not live'"
+markers = ["live: calls a real paid API; needs a key and costs money"]
