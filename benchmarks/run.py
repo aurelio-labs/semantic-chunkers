@@ -145,20 +145,21 @@ def predicted_boundaries(chunks: list[Chunk], sentences: list[str]) -> list[int]
 
 
 def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, Any]:
-    docs = synthetic.build(
-        n_docs=suite.get("n_docs", 30),
-        min_sources=suite.get("min_sources", 3),
-        max_sources=suite.get("max_sources", 6),
-        seed=suite.get("seed", 0),
-    )
+    # Resolved once and used for both the documents and the cache partition, so
+    # a config that spells a default out and one that omits it describe the same
+    # suite and share a partition rather than re-embedding identical documents.
+    shaping = {
+        "n_docs": suite.get("n_docs", 30),
+        "min_sources": suite.get("min_sources", 3),
+        "max_sources": suite.get("max_sources", 6),
+        "seed": suite.get("seed", 0),
+    }
+    docs = synthetic.build(**shaping)
     # The suite's parameters, not just its name: a config may list the same
     # suite twice with different seeds or sizes, and those runs must not share
     # a cache partition any more than two different suites may. Only the keys
     # that shape the documents count, so changing a scoring-only knob such as
     # tolerance does not throw the embedding cache away.
-    shaping = {
-        k: suite.get(k) for k in ("n_docs", "min_sources", "max_sources", "seed")
-    }
     suite_name = f"{suite.get('name', 'suite')}@{config_hash(shaping)}"
     encoder = (
         make_encoder(

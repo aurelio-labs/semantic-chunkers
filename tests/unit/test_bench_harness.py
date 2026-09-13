@@ -227,3 +227,33 @@ def test_a_scoring_only_knob_does_not_discard_the_embedding_cache(
     assert set(encoder._model.namespaces) == first, (
         "tolerance shapes no document, so it must not open new cache partitions"
     )
+
+
+def test_spelling_out_a_default_does_not_re_embed_the_same_documents(
+    monkeypatch, fake_encoder
+):
+    """Two configs describing the same suite must share one cache partition."""
+    encoder = fake_encoder("consecutive/stub")
+    monkeypatch.setattr(run, "make_encoder", lambda spec, namespace: encoder)
+    variant = {
+        "name": "consecutive/stub",
+        "chunker": "consecutive",
+        "params": {"score_threshold": 0.45},
+    }
+    run.run_synthetic(variant, {"name": "synthetic-boundaries", "n_docs": 2})
+    first = set(encoder._model.namespaces)
+    # seed, min_sources and max_sources below are the defaults build applies
+    run.run_synthetic(
+        variant,
+        {
+            "name": "synthetic-boundaries",
+            "n_docs": 2,
+            "seed": 0,
+            "min_sources": 3,
+            "max_sources": 6,
+        },
+    )
+
+    assert set(encoder._model.namespaces) == first, (
+        "an explicit default describes the same documents and must reuse the cache"
+    )
