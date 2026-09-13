@@ -93,6 +93,21 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
   # ['a', 'b', 'c']
   ```
 
+- Plotting moved out of `StatisticalChunker` and into `semantic_chunkers.stats`, behind the `stats` extra. `chunker.plot_chunks = True` and both `plot_*` methods still work, but with matplotlib missing they now raise `ImportError` naming the extra instead of logging a warning and silently drawing nothing. The old warning pointed at `semantic-router[processing]`, which is neither the right package nor the right extra. `ChunkStatistics` moved with them. It is re-exported where it was, so `from semantic_chunkers.chunkers.statistical import ChunkStatistics` still resolves, but `semantic_chunkers.stats` is now its home.
+
+  ```python
+  from semantic_chunkers import StatisticalChunker
+
+  chunker = StatisticalChunker(encoder=encoder, plot_chunks=True)
+
+  # before, without matplotlib: a warning in the log, no plot, chunks returned
+  chunks = chunker(docs)
+
+  # after, without matplotlib
+  # ImportError: Plotting requires matplotlib, which is not installed by
+  # default. Install it with `pip install semantic-chunkers[stats]`.
+  ```
+
 ### Added
 - `BaseSplitter.spans(doc)` and `RegexSplitter.spans(doc, delimiters)` return the `(start, end)` offsets of each split in the document, which is where `Chunk.content` and the chunk offsets come from. The default implementation locates the splits of any splitter whose `__call__` returns verbatim pieces of the document, so an existing custom splitter gets offsets without a change; one that rewrites its text returns no spans and its chunks carry no offsets.
 

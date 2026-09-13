@@ -1,5 +1,4 @@
 import asyncio
-from dataclasses import dataclass
 from typing import Any, List, Optional
 
 import numpy as np
@@ -10,37 +9,13 @@ from semantic_chunkers.chunkers.base import BaseChunker
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 from semantic_chunkers.splitters.regex import RegexSplitter
+from semantic_chunkers.stats import ChunkStatistics, chunk_statistics
 from semantic_chunkers.utils.logger import logger
 from semantic_chunkers.utils.text import (
     async_retry_with_timeout,
     tiktoken_length,
     time_it,
 )
-
-
-@dataclass
-class ChunkStatistics:
-    total_documents: int
-    total_chunks: int
-    chunks_by_threshold: int
-    chunks_by_max_chunk_size: int
-    chunks_by_last_split: int
-    min_token_size: int
-    max_token_size: int
-    chunks_by_similarity_ratio: float
-
-    def __str__(self):
-        return (
-            f"Chunking Statistics:\n"
-            f"  - Total Documents: {self.total_documents}\n"
-            f"  - Total Chunks: {self.total_chunks}\n"
-            f"  - Chunks by Threshold: {self.chunks_by_threshold}\n"
-            f"  - Chunks by Max Chunk Size: {self.chunks_by_max_chunk_size}\n"
-            f"  - Last Chunk: {self.chunks_by_last_split}\n"
-            f"  - Minimum Token Size of Chunk: {self.min_token_size}\n"
-            f"  - Maximum Token Size of Chunk: {self.max_token_size}\n"
-            f"  - Similarity Chunk Ratio: {self.chunks_by_similarity_ratio:.2f}"
-        )
 
 
 class StatisticalChunker(BaseChunker):
@@ -441,11 +416,6 @@ class StatisticalChunker(BaseChunker):
         chunks, current_split = [], []
         current_tokens_count = 0
 
-        # Statistics
-        chunks_by_threshold = 0
-        chunks_by_max_chunk_size = 0
-        chunks_by_last_split = 0
-
         for doc_idx, doc in enumerate(docs):
             doc_token_count = token_counts[doc_idx]
             logger.debug(f"Accumulative token count: {current_tokens_count} tokens")
@@ -478,7 +448,6 @@ class StatisticalChunker(BaseChunker):
                         f"threshold {triggered_score}."
                     )
                     current_split, current_tokens_count = [], 0
-                    chunks_by_threshold += 1
                     continue  # Move to the next document after splitting
 
             # Check if adding the current document exceeds the max token limit
@@ -492,9 +461,8 @@ class StatisticalChunker(BaseChunker):
                             token_count=current_tokens_count,
                         )
                     )
-                    chunks_by_max_chunk_size += 1
                     logger.debug(
-                        f"Chink finalized with {current_tokens_count} tokens due to "
+                        f"Chunk finalized with {current_tokens_count} tokens due to "
                         f"exceeding token limit of {self.max_split_tokens}."
                     )
                     current_split, current_tokens_count = [], 0
@@ -512,7 +480,6 @@ class StatisticalChunker(BaseChunker):
                     token_count=current_tokens_count,
                 )
             )
-            chunks_by_last_split += 1
             logger.debug(
                 f"Final split added with {current_tokens_count} "
                 "tokens due to remaining documents."
@@ -531,31 +498,8 @@ class StatisticalChunker(BaseChunker):
                 f"Token count mismatch: {original_token_count} != {split_token_count}"
             )
 
-        # Statistics
-        total_chunks = len(chunks)
-        chunks_by_similarity_ratio = (
-            chunks_by_threshold / total_chunks if total_chunks else 0
-        )
-        min_token_size = max_token_size = 0
-        if chunks:
-            token_counts = [
-                split.token_count for split in chunks if split.token_count is not None
-            ]
-            min_token_size, max_token_size = (
-                min(token_counts, default=0),
-                max(token_counts, default=0),
-            )
-
-        self.statistics = ChunkStatistics(
-            total_documents=len(docs),
-            total_chunks=total_chunks,
-            chunks_by_threshold=chunks_by_threshold,
-            chunks_by_max_chunk_size=chunks_by_max_chunk_size,
-            chunks_by_last_split=chunks_by_last_split,
-            min_token_size=min_token_size,
-            max_token_size=max_token_size,
-            chunks_by_similarity_ratio=chunks_by_similarity_ratio,
-        )
+        # Counts are read back off the finished chunks, not tallied in the loop.
+        self.statistics = chunk_statistics(docs, chunks)
 
         return chunks
 
@@ -563,118 +507,32 @@ class StatisticalChunker(BaseChunker):
         self,
         similarities: List[float],
         split_indices: List[int],
-        chunks: list[Chunk],
+        chunks: List[Chunk],
         calculated_threshold: float,
-    ):
-        try:
-            from matplotlib import pyplot as plt
-        except ImportError:
-            logger.warning(
-                "Plotting is disabled. Please `pip install "
-                "semantic-router[processing]`."
-            )
-            return
+    ) -> None:
+        """Plot the similarity scores and the chunk sizes of one batch.
 
-        _, axs = plt.subplots(2, 1, figsize=(12, 12))  # Adjust for two plots
+        Drawn by `semantic_chunkers.stats`, which raises without the plotting
+        extra: `pip install semantic-chunkers[stats]`.
+        """
+        from semantic_chunkers.stats import plot_similarity_scores
 
-        # Plot 1: Similarity Scores
-        axs[0].plot(similarities, label="Similarity Scores", marker="o")
-        for split_index in split_indices:
-            axs[0].axvline(
-                x=split_index - 1,
-                color="r",
-                linestyle="--",
-                label="Chunk" if split_index == split_indices[0] else "",
-            )
-        axs[0].axhline(
-            y=calculated_threshold,
-            color="g",
-            linestyle="-.",
-            label="Threshold Similarity Score",
+        plot_similarity_scores(
+            similarities, split_indices, chunks, calculated_threshold, self.window_size
         )
-
-        # Annotating each similarity score
-        for i, score in enumerate(similarities):
-            axs[0].annotate(
-                f"{score:.2f}",  # Formatting to two decimal places
-                (i, score),
-                textcoords="offset points",
-                xytext=(0, 10),  # Positioning the text above the point
-                ha="center",
-            )  # Center-align the text
-
-        axs[0].set_xlabel("Document Segment Index")
-        axs[0].set_ylabel("Similarity Score")
-        axs[0].set_title(
-            f"Threshold: {calculated_threshold} | Window Size: {self.window_size}",
-            loc="right",
-            fontsize=10,
-        )
-        axs[0].legend()
-
-        # Plot 2: Chunk Token Size Distribution
-        token_counts = [split.token_count for split in chunks]
-        axs[1].bar(range(len(token_counts)), token_counts, color="lightblue")
-        axs[1].set_title("Chunk Token Sizes")
-        axs[1].set_xlabel("Chunk Index")
-        axs[1].set_ylabel("Token Count")
-        axs[1].set_xticks(range(len(token_counts)))
-        axs[1].set_xticklabels([str(i) for i in range(len(token_counts))])
-        axs[1].grid(True)
-
-        # Annotate each bar with the token size
-        for idx, token_count in enumerate(token_counts):
-            if not token_count:
-                continue
-            axs[1].text(
-                idx, token_count + 0.01, str(token_count), ha="center", va="bottom"
-            )
-
-        plt.tight_layout()
-        plt.show()
 
     def plot_sentence_similarity_scores(
         self, docs: List[str], threshold: float, window_size: int
-    ):
-        try:
-            from matplotlib import pyplot as plt
-        except ImportError:
-            logger.warning("Plotting is disabled. Please `pip install matplotlib`.")
-            return
+    ) -> None:
+        """Plot how each sentence of ``docs`` compares with the ones before it.
+
+        Drawn by `semantic_chunkers.stats`, which raises without the plotting
+        extra: `pip install semantic-chunkers[stats]`. It encodes the sentences
+        itself, and only once that extra is known to be present.
         """
-        Computes similarity scores between the average of the last
-        'window_size' sentences and the next one,
-        plots a graph of these similarity scores, and prints the first
-        sentence after a similarity score below
-        a specified threshold.
-        """
+        from semantic_chunkers.stats import plot_sentence_similarity_scores
+
         sentences = [sentence for doc in docs for sentence in self._split(doc)]
-        encoded_sentences = self._encode_documents(sentences)
-        similarity_scores = []
-
-        for i in range(window_size, len(encoded_sentences)):
-            window_avg_encoding = np.mean(
-                encoded_sentences[i - window_size : i], axis=0
-            )
-            sim_score = np.dot(window_avg_encoding, encoded_sentences[i]) / (
-                np.linalg.norm(window_avg_encoding)
-                * np.linalg.norm(encoded_sentences[i])
-                + 1e-10
-            )
-            similarity_scores.append(sim_score)
-
-        plt.figure(figsize=(10, 8))
-        plt.plot(similarity_scores, marker="o", linestyle="-", color="b")
-        plt.title("Sliding Window Sentence Similarity Scores")
-        plt.xlabel("Sentence Index")
-        plt.ylabel("Similarity Score")
-        plt.grid(True)
-        plt.axhline(y=threshold, color="r", linestyle="--", label="Threshold")
-        plt.show()
-
-        for i, score in enumerate(similarity_scores):
-            if score < threshold:
-                print(
-                    f"First sentence after similarity score "
-                    f"below {threshold}: {sentences[i + window_size]}"
-                )
+        plot_sentence_similarity_scores(
+            sentences, self._encode_documents, threshold, window_size
+        )
