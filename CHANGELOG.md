@@ -71,6 +71,21 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
   # ['a', 'b', 'c']
   ```
 
+- Plotting moved out of `StatisticalChunker` and into `semantic_chunkers.stats`, behind the `stats` extra. `chunker.plot_chunks = True` and both `plot_*` methods still work, but with matplotlib missing they now raise `ImportError` naming the extra instead of logging a warning and silently drawing nothing. The old warning pointed at `semantic-router[processing]`, which is neither the right package nor the right extra. `ChunkStatistics` moved with them; import it from `semantic_chunkers.stats` rather than `semantic_chunkers.chunkers.statistical`.
+
+  ```python
+  from semantic_chunkers import StatisticalChunker
+
+  chunker = StatisticalChunker(encoder=encoder, plot_chunks=True)
+
+  # before, without matplotlib: a warning in the log, no plot, chunks returned
+  chunks = chunker(docs)
+
+  # after, without matplotlib
+  # ImportError: Plotting requires matplotlib, which is not installed by
+  # default. Install it with `pip install semantic-chunkers[stats]`.
+  ```
+
 ### Changed
 - `semantic_chunkers.__version__` is read from the installed package metadata instead of a hard-coded string that had drifted from `pyproject.toml`.
 - The mutable default argument `delimiters=[]` on `RegexChunker.__init__` and `RegexSplitter.__call__` is now `None`. The first call to `RegexSplitter` with no delimiters used to append the compiled sentence pattern into the shared signature default, where it stayed for the life of the process.
