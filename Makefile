@@ -20,10 +20,13 @@ test_unit:
 test_integration:
 	uv run pytest -vv --exitfirst --maxfail=1 tests/integration
 # The report is rendered even when a variant failed, then the runner's exit
-# code is preserved so CI still sees the failure.
+# code is preserved so CI still sees the failure. A failing render fails the
+# recipe too, so a report that never got written cannot leave CI green; the
+# runner's code wins when both fail, because it names the failing variant.
 bench:
 	uv run python -m benchmarks.run; status=$$?; \
-	uv run python -m benchmarks.report; \
+	uv run python -m benchmarks.report; report=$$?; \
+	if [ $$status -eq 0 ]; then status=$$report; fi; \
 	exit $$status
 
 bench_report:
