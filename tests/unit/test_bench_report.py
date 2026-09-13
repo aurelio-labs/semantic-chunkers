@@ -83,6 +83,8 @@ def test_report_writes_self_contained_html(tmp_path):
     # are the ways that could regress
     for external in ("http://", "https://", "<script", "url(", "@import"):
         assert external not in page, f"report reaches outside itself: {external}"
+    # every chart is an image to a screen reader, so every chart needs a name
+    assert page.count('role="img"') == page.count("aria-label=") > 0
     # the highest F1 leads, and every variant is in the table view
     assert "alpha" in page and "beta" in page
     assert page.index(">alpha<") < page.index(">beta<")
