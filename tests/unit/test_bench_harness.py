@@ -102,6 +102,38 @@ def test_make_chunker_refuses_to_build_an_embedding_chunker_without_an_encoder()
         run.make_chunker({"chunker": "statistical"}, None)
 
 
+def test_every_document_is_embedded_in_its_own_cache_namespace(
+    monkeypatch, fake_encoder
+):
+    """Per-document timing is only honest if each document pays for itself.
+
+    The synthetic suite draws documents from one pool of articles, so without a
+    partition per document the later ones are served from the cache and
+    ``doc_s_p50``/``doc_s_p95`` rank documents by position in the suite rather
+    than by difficulty. A stub model keeps this off the network.
+    """
+    encoder = fake_encoder("consecutive/stub")
+    monkeypatch.setattr(run, "make_encoder", lambda spec, namespace: encoder)
+    variant = {
+        "name": "consecutive/stub",
+        "chunker": "consecutive",
+        "params": {"score_threshold": 0.45},
+    }
+    metrics = run.run_synthetic(variant, {"name": "synthetic-boundaries", "n_docs": 3})
+
+    model = encoder._model
+    # one partition per document, entered in order and never returned to
+    assert list(dict.fromkeys(model.namespaces)) == [
+        "consecutive/stub/0",
+        "consecutive/stub/1",
+        "consecutive/stub/2",
+    ]
+    # the consequence: text shared between documents is embedded once per
+    # document, so more texts reach the model than the run has distinct texts
+    assert metrics["encoder_model_texts"] == len(model.texts) > len(set(model.texts))
+    assert metrics["doc_s_p50"] <= metrics["doc_s_p95"]
+
+
 def test_metrics_carry_a_distribution_not_just_a_mean(tmp_path):
     """Regex needs no encoder, so the whole runner is exercised with no model."""
     config = tmp_path / "config.json"
