@@ -35,24 +35,35 @@ def time_it(func):
 
 
 def async_retry_with_timeout(retries=3, timeout=10):
+    """Retry an async function, giving each attempt ``timeout`` seconds.
+
+    The failure that ends the last attempt is raised, timeout included. A
+    decorator that swallowed it would return ``None``, and the caller would
+    fail somewhere further on with nothing left to say why.
+    """
+    if retries < 1:
+        raise ValueError(f"retries must be at least 1, got {retries}")
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             for attempt in range(retries):
+                last_attempt = attempt == retries - 1
                 try:
                     return await asyncio.wait_for(func(*args, **kwargs), timeout)
                 except asyncio.TimeoutError:
                     logger.warning(
                         f"Timeout on attempt {attempt + 1} for {func.__name__}"
                     )
+                    if last_attempt:
+                        raise
                 except Exception as e:
                     logger.error(
                         f"Exception on attempt {attempt + 1} for {func.__name__}: {e}"
                     )
-                    if attempt == retries - 1:
+                    if last_attempt:
                         raise
-                    else:
-                        await asyncio.sleep(2**attempt)  # Exponential backoff
+                    await asyncio.sleep(2**attempt)  # Exponential backoff
 
         return wrapper
 

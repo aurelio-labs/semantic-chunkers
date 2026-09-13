@@ -279,7 +279,10 @@ class StatisticalChunker(BaseChunker):
 
         return np.array(embeddings)
 
-    @async_retry_with_timeout(retries=3, timeout=5)
+    # One attempt covers up to 2000 documents against a remote encoder, so the
+    # budget is a minute rather than the five seconds it used to be. A stall
+    # that outlasts all three attempts is raised, not returned as no embeddings.
+    @async_retry_with_timeout(retries=3, timeout=60)
     @time_it
     async def _async_encode_documents(self, docs: List[str]) -> np.ndarray:
         """
