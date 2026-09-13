@@ -1,10 +1,11 @@
 from typing import Any, List
 
 import numpy as np
-from semantic_router.encoders import DenseEncoder
+from pydantic import SkipValidation
 from tqdm.auto import tqdm
 
 from semantic_chunkers.chunkers.base import BaseChunker
+from semantic_chunkers.encoders import DenseEncoder, acall_encoder
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 from semantic_chunkers.splitters.regex import RegexSplitter
@@ -16,7 +17,7 @@ class CumulativeChunker(BaseChunker):
     embeddings of cumulative concatenated documents with the next document.
     """
 
-    encoder: DenseEncoder
+    encoder: SkipValidation[DenseEncoder]
 
     def __init__(
         self,
@@ -26,7 +27,6 @@ class CumulativeChunker(BaseChunker):
         score_threshold: float = 0.45,
     ):
         super().__init__(name=name, encoder=encoder, splitter=splitter)
-        encoder.score_threshold = score_threshold
         self.score_threshold = score_threshold
 
     def _chunk(self, splits: List[Any], batch_size: int = 64) -> List[Chunk]:
@@ -104,10 +104,10 @@ class CumulativeChunker(BaseChunker):
                 next_doc = splits[idx + 1]
 
                 # Embedding and similarity calculation remains the same.
-                curr_chunk_docs_embed_result = await self.encoder.acall(
-                    [curr_chunk_docs]
+                curr_chunk_docs_embed_result = await acall_encoder(
+                    self.encoder, [curr_chunk_docs]
                 )
-                next_doc_embed_result = await self.encoder.acall([next_doc])
+                next_doc_embed_result = await acall_encoder(self.encoder, [next_doc])
                 curr_chunk_docs_embed = curr_chunk_docs_embed_result[0]
                 next_doc_embed = next_doc_embed_result[0]
 

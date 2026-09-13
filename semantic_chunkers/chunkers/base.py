@@ -1,9 +1,9 @@
 from typing import Any, List, Optional
 
 from colorama import Fore, Style
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from semantic_router.encoders.base import DenseEncoder
+from pydantic import BaseModel, ConfigDict, SkipValidation, field_validator
 
+from semantic_chunkers.encoders import DenseEncoder, EncoderError
 from semantic_chunkers.schema import Chunk
 from semantic_chunkers.splitters.base import BaseSplitter
 
@@ -12,14 +12,20 @@ class BaseChunker(BaseModel):
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
     name: str
-    encoder: Optional[DenseEncoder] = Field(default=None, validate_default=True)
+    # Validation is skipped because the annotation is a Protocol: an encoder
+    # with no async path is still usable on the synchronous call, so requiring
+    # the whole protocol here would reject it before it chunked anything.
+    encoder: Optional[SkipValidation[DenseEncoder]] = None
     splitter: BaseSplitter
 
-    @field_validator("encoder", mode="before")
+    @field_validator("encoder")
     @classmethod
-    def set_encoder(cls, v):
-        if v is None:
-            return DenseEncoder(name="default")
+    def check_encoder_is_callable(cls, v: Any) -> Any:
+        if v is not None and not callable(v):
+            raise EncoderError(
+                f"An encoder must be callable as encoder(docs), and "
+                f"{type(v).__name__} is not. Wrap a function in CallableEncoder."
+            )
         return v
 
     def __call__(self, docs: List[str]) -> List[List[Chunk]]:
