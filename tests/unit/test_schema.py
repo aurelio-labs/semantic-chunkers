@@ -133,6 +133,16 @@ def test_content_keeps_the_layout_the_splits_were_stripped_of(chunker):
     assert all(split == split.strip() for chunk in chunks for split in chunk.splits)
 
 
+def test_the_gap_between_two_chunks_belongs_to_the_one_on_its_left():
+    """Every character has to go somewhere; it goes to the chunk it follows."""
+    doc = "Alpha one.\n\n  Beta one."
+
+    chunks = RegexChunker(max_chunk_tokens=4)([doc])[0]
+
+    assert [chunk.content for chunk in chunks] == ["Alpha one.\n\n  ", "Beta one."]
+    assert [(chunk.start, chunk.end) for chunk in chunks] == [(0, 14), (14, 23)]
+
+
 def test_each_chunk_contains_its_own_splits(chunker):
     chunks = chunker([DOC])[0]
 
@@ -149,6 +159,22 @@ def test_async_chunks_carry_the_same_content_as_sync(chunker):
     assert [(c.start, c.end, c.content) for c in asynchronous] == [
         (c.start, c.end, c.content) for c in sync
     ]
+
+
+def test_statistical_chunker_keeps_the_document_whole_across_batches():
+    """It encodes 64 splits at a time and carries the last chunk into the next
+    batch, so a document longer than one batch is where offsets would drift."""
+    doc = "".join(
+        f"{'Alpha' if (i // 10) % 2 else 'Beta'} sentence {i}.\n\n" for i in range(90)
+    )
+    chunker = StatisticalChunker(
+        encoder=TopicEncoder(), min_split_tokens=5, max_split_tokens=40
+    )
+    assert len(RegexSplitter()(doc)) > 64, "fewer splits than a batch proves nothing"
+
+    for chunks in (chunker([doc])[0], asyncio.run(chunker.acall([doc]))[0]):
+        assert "".join(chunk.content for chunk in chunks) == doc
+        assert all(doc[c.start : c.end] == c.content for c in chunks)
 
 
 def test_offsets_are_relative_to_each_document_not_the_batch():
