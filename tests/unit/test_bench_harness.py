@@ -4,6 +4,7 @@ import pytest
 
 from benchmarks import run, synthetic
 from benchmarks.run import predicted_boundaries
+from semantic_chunkers import RegexChunker
 from semantic_chunkers.schema import Chunk
 
 
@@ -45,6 +46,51 @@ def test_predicted_boundaries_raises_when_a_chunk_cannot_be_placed():
     chunks = [Chunk(splits=["a."]), Chunk(splits=["zzz."])]
     with pytest.raises(ValueError, match="matches no remaining sentence"):
         predicted_boundaries(chunks, sentences)
+
+
+def test_predicted_boundaries_reads_chunk_offsets_when_the_chunks_carry_them():
+    """Character positions instead of matching sentence text, as #45 asked for."""
+    sentences = ["A.", "B.", "C.", "D.", "E."]
+    text = " ".join(sentences)
+    chunks = RegexChunker(max_chunk_tokens=4)([text])[0]
+
+    assert [chunk.start for chunk in chunks] == [0, 6, 12]
+    assert predicted_boundaries(chunks, sentences, text) == [2, 4]
+    # the same segmentation the text-matching path reports
+    assert predicted_boundaries(chunks, sentences, text) == predicted_boundaries(
+        chunks, sentences
+    )
+
+
+def test_predicted_boundaries_offsets_agree_with_text_matching_on_the_suite():
+    """The metric must not move because of how a boundary was located."""
+    for doc in synthetic.build(n_docs=4, seed=0):
+        chunks = RegexChunker(max_chunk_tokens=120)([doc.text])[0]
+
+        assert predicted_boundaries(
+            chunks, doc.sentences, doc.text
+        ) == predicted_boundaries(chunks, doc.sentences)
+
+
+def test_predicted_boundaries_falls_back_when_a_chunk_has_no_offsets():
+    """A splitter that cannot be located still gets scored, by text."""
+    sentences = ["a.", "b.", "c."]
+    text = " ".join(sentences)
+    chunks = [Chunk(splits=["a."]), Chunk(splits=["b.", "c."])]
+
+    assert predicted_boundaries(chunks, sentences, text) == [1]
+
+
+def test_predicted_boundaries_raises_when_an_offset_lands_on_another_sentence():
+    sentences = ["a.", "b.", "c."]
+    text = " ".join(sentences)
+    chunks = [
+        Chunk(splits=["a."], start=0, end=3, content="a. "),
+        Chunk(splits=["zzz."], start=3, end=8, content="b. c."),
+    ]
+
+    with pytest.raises(ValueError, match="where no sentence begins"):
+        predicted_boundaries(chunks, sentences, text)
 
 
 def _config(tmp_path, variants):

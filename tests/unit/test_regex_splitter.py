@@ -72,6 +72,54 @@ class TestRegexSplitter(unittest.TestCase):
         result = self.splitter("a1b2c3", delimiters=[regex.compile(r"\d")])
         self.assertEqual(result, ["a", "b", "c"])
 
+    def test_spans_locate_every_split_in_the_document(self):
+        doc = "First paragraph.\n\n  Second one.\tThird one."
+        pattern = regex.compile(self.splitter.regex_pattern, regex.VERBOSE)
+
+        for delimiters in (None, ["\n\n"], ["."], [pattern], ["\n\n", pattern]):
+            with self.subTest(delimiters=delimiters):
+                spans = self.splitter.spans(doc, delimiters=delimiters)
+                self.assertEqual(
+                    [doc[start:end] for start, end in spans],
+                    self.splitter(doc, delimiters=delimiters),
+                )
+
+    def test_spans_ascend_and_never_overlap(self):
+        doc = "First paragraph.\n\n  Second one.\tThird one."
+        spans = self.splitter.spans(doc)
+
+        self.assertGreater(len(spans), 1)
+        cursor = 0
+        for start, end in spans:
+            self.assertLessEqual(cursor, start)
+            self.assertLess(start, end)
+            self.assertLessEqual(end, len(doc))
+            cursor = end
+
+    def test_the_gaps_between_spans_hold_the_layout(self):
+        """What a split is stripped of is left in the document, not thrown away."""
+        doc = "First paragraph.\n\n  Second one.\tThird one."
+        spans = self.splitter.spans(doc)
+
+        gaps = [doc[left[1] : right[0]] for left, right in zip(spans, spans[1:])]
+        self.assertEqual(gaps, ["\n\n  ", "\t"])
+
+    def test_a_string_delimiter_stays_inside_the_span_that_precedes_it(self):
+        """``spans`` matches ``__call__``, which keeps the delimiter on the piece."""
+        doc = "First part|Second part|Third part"
+
+        spans = self.splitter.spans(doc, delimiters=["|"])
+
+        self.assertEqual(
+            [doc[start:end] for start, end in spans],
+            ["First part|", "Second part|", "Third part"],
+        )
+        self.assertEqual(spans[0], (0, 11))
+
+    def test_an_empty_string_delimiter_is_rejected_like_str_split(self):
+        with self.assertRaises(ValueError):
+            self.splitter("a b c", delimiters=[""])
+
     def test_regex_splitter_default_delimiters_not_mutated(self):
         doc = "This is a sentence. And another one!"
         default = inspect.signature(RegexSplitter.__call__).parameters["delimiters"]
