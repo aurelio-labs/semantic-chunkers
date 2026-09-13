@@ -18,40 +18,36 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 import numpy as np
-from semantic_router.encoders.base import DenseEncoder
 
 CACHE_DIR = Path(__file__).parent / ".cache"
 
 
-class CachedSentenceTransformerEncoder(DenseEncoder):
-    """A ``DenseEncoder`` backed by sentence-transformers with a SQLite cache.
+class CachedSentenceTransformerEncoder:
+    """An encoder backed by sentence-transformers with a SQLite cache.
 
-    Counts every call that reaches the model (``model_calls``) and every text
-    embedded by the model (``model_texts``); cache hits are free.
+    Satisfies ``semantic_chunkers.DenseEncoder`` by having ``__call__`` and
+    ``acall``, so the chunkers take it as they take any other encoder. Counts
+    every call that reaches the model (``model_calls``) and every text embedded
+    by the model (``model_texts``); cache hits are free.
     """
-
-    name: str = "all-MiniLM-L6-v2"
-    score_threshold: float = 0.5
-    type: str = "sentence-transformers"
-    namespace: str = ""
-
-    _model: Any = None
-    _conn: Optional[sqlite3.Connection] = None
-    model_calls: int = 0
-    model_texts: int = 0
-    model_seconds: float = 0.0
-    requests: int = 0
-    requested_texts: int = 0
 
     def __init__(
         self,
         name: str = "all-MiniLM-L6-v2",
         cache_dir: Path = CACHE_DIR,
         namespace: str = "",
-        **kwargs,
+        score_threshold: float = 0.5,
     ):
-        super().__init__(name=name, **kwargs)
+        self.name = name
+        self.score_threshold = score_threshold
         self.namespace = namespace
+        self._model: Any = None
+        self.model_calls = 0
+        self.model_texts = 0
+        self.model_seconds = 0.0
+        self.requests = 0
+        self.requested_texts = 0
+        self._conn: Optional[sqlite3.Connection] = None
         cache_dir.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(cache_dir / "embeddings.sqlite")
         self._conn.execute(
