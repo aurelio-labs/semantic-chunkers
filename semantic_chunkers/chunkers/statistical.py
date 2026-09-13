@@ -254,9 +254,9 @@ class StatisticalChunker(BaseChunker):
                     "Splitting to sentences before semantically merging."
                 )
             if isinstance(doc, str):
-                splits = self._split(doc)
+                splits, spans = self._split_spans(doc)
                 doc_chunks = self._chunk(splits, batch_size=batch_size)
-                all_chunks.append(doc_chunks)
+                all_chunks.append(self._attach_spans(doc, spans, doc_chunks))
             else:
                 raise ValueError("The document must be a string.")
         return all_chunks
@@ -283,9 +283,9 @@ class StatisticalChunker(BaseChunker):
                     "Splitting to sentences before semantically merging."
                 )
             if isinstance(doc, str):
-                splits = self._split(doc)
+                splits, spans = self._split_spans(doc)
                 doc_chunks = await self._async_chunk(splits, batch_size=batch_size)
-                all_chunks.append(doc_chunks)
+                all_chunks.append(self._attach_spans(doc, spans, doc_chunks))
             else:
                 raise ValueError("The document must be a string.")
         return all_chunks
