@@ -5,6 +5,28 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
 ## Unreleased
 
 ### Breaking
+- `Chunk.content` is the exact text of the document the chunk covers, not the splits joined with a space, and it is a field rather than a property. `Chunk.start` and `Chunk.end` are its character offsets into that document. The splits are stripped, so the old join lost every paragraph break, tab and repeated space and the chunks of a document did not join back into the document. A chunk the library cannot place in a source document — one built by hand, or one whose splits are video frames rather than text — has all three set to `None`, where `content` used to be a `TypeError` for frames and a space-join for everything else.
+
+  ```python
+  doc = "Alpha one.\n\n  Alpha two. Beta one."
+  chunker = RegexChunker(max_chunk_tokens=8)
+  chunk = chunker([doc])[0][0]
+
+  # before: the splits, joined, with the layout gone
+  chunk.content               # 'Alpha one. Alpha two.'
+
+  # after: the document itself, and where it came from
+  chunk.content               # 'Alpha one.\n\n  Alpha two. '
+  doc[chunk.start : chunk.end] == chunk.content            # True
+  "".join(c.content for c in chunker([doc])[0]) == doc     # True
+
+  # to get the old value
+  " ".join(chunk.splits)
+
+  # a chunk you built yourself has no document to point at
+  Chunk(splits=["Alpha one."]).content    # None, was 'Alpha one.'
+  ```
+
 - `Chunk`, `BaseChunker`, and `BaseSplitter` are native pydantic v2 models instead of `pydantic.v1` shim models. Nesting them inside a `pydantic.v1` model no longer validates, and subclasses that declared a `class Config` should switch to `model_config`.
 
   ```python
@@ -70,6 +92,9 @@ All notable changes to semantic-chunkers. Breaking changes are listed under **Br
   # after
   # ['a', 'b', 'c']
   ```
+
+### Added
+- `BaseSplitter.spans(doc)` and `RegexSplitter.spans(doc, delimiters)` return the `(start, end)` offsets of each split in the document, which is where `Chunk.content` and the chunk offsets come from. The default implementation locates the splits of any splitter whose `__call__` returns verbatim pieces of the document, so an existing custom splitter gets offsets without a change; one that rewrites its text returns no spans and its chunks carry no offsets.
 
 ### Changed
 - `semantic_chunkers.__version__` is read from the installed package metadata instead of a hard-coded string that had drifted from `pyproject.toml`.

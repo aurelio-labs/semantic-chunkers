@@ -37,6 +37,24 @@ chunks = chunker(docs=["your long document text goes here..."])
 chunker.print(chunks[0])
 ```
 
+## Find a chunk in the document
+
+`content` is the document's own text, whitespace and all, and `start` and `end` are where that text sits in it:
+
+```python
+doc = "Alpha one.\n\n  Alpha two. Beta one."
+chunks = chunker(docs=[doc])[0]
+
+first = chunks[0]
+first.content                                     # the document from first.start to first.end
+doc[first.start : first.end] == first.content     # True
+"".join(chunk.content for chunk in chunks) == doc # True
+```
+
+Because the chunks of a document join back into that document, you can highlight a chunk where it was found, or store an offset instead of a copy of the text. The `splits` stay stripped, so use `content` when you want the layout and `splits` when you want the sentences.
+
+A chunk the library could not place in a document — one you built yourself, or one whose splits are video frames rather than text — has `content`, `start` and `end` set to `None`.
+
 ## Go async
 
 Chunking embeds a lot of sentences, so the async path is dramatically faster when you're calling an API. Every chunker has `acall`:
