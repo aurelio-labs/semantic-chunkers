@@ -8,6 +8,8 @@ indentation, a tab, a double space and a trailing newline.
 
 import asyncio
 import hashlib
+import logging
+from contextlib import contextmanager
 from typing import Any, List
 
 import numpy as np
@@ -22,7 +24,9 @@ from semantic_chunkers import (
     RegexSplitter,
     StatisticalChunker,
 )
+from semantic_chunkers.chunkers.base import BaseChunker
 from semantic_chunkers.schema import Chunk
+from semantic_chunkers.utils.logger import logger
 
 DOC = (
     "Alpha one.\n\n"
@@ -77,6 +81,23 @@ class ShoutingSplitter(BaseSplitter):
 
     def __call__(self, doc: str) -> List[str]:
         return [split.upper() for split in RegexSplitter()(doc)]
+
+
+@contextmanager
+def captured_warnings():
+    """Collect the library's warnings; its logger does not propagate to caplog."""
+    records: List[logging.LogRecord] = []
+
+    class Collector(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    handler = Collector(level=logging.WARNING)
+    logger.addHandler(handler)
+    try:
+        yield records
+    finally:
+        logger.removeHandler(handler)
 
 
 def chunkers():
@@ -231,9 +252,35 @@ def test_a_splitter_that_rewrites_its_text_still_chunks_without_offsets():
         encoder=TopicEncoder(), splitter=ShoutingSplitter(), score_threshold=0.45
     )
 
-    chunks = chunker([DOC])[0]
+    with captured_warnings() as warnings:
+        chunks = chunker([DOC])[0]
 
     assert [split for chunk in chunks for split in chunk.splits] == ShoutingSplitter()(
         DOC
     )
     assert all(chunk.content is None and chunk.start is None for chunk in chunks)
+    # a supported splitter, not a fault: one warning per document would be noise
+    assert warnings == []
+
+
+def test_a_chunker_that_invents_a_split_warns_and_gets_no_offsets():
+    """The counting guard: offsets that might be wrong are worse than none."""
+
+    class InventingChunker(BaseChunker):
+        def _chunk(self, splits: List[Any]) -> List[Chunk]:
+            return [Chunk(splits=list(splits) + ["a split from nowhere"])]
+
+    chunker = InventingChunker(name="inventing", splitter=RegexSplitter())
+    splits, spans = chunker._split_spans(DOC)
+
+    with captured_warnings() as warnings:
+        chunks = chunker._attach_spans(DOC, spans, chunker._chunk(splits))
+
+    assert all(
+        chunk.content is None and chunk.start is None and chunk.end is None
+        for chunk in chunks
+    )
+    assert [record.getMessage() for record in warnings] == [
+        "Chunk splits do not line up with the document's splits; "
+        "returning chunks without content or offsets."
+    ]

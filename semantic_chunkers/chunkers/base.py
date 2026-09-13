@@ -58,8 +58,12 @@ class BaseChunker(BaseModel):
         to the chunk on its left. The first chunk starts at 0 and the last ends
         at the end of the document. Every character therefore lands in exactly
         one chunk, and joining the chunks' ``content`` reproduces ``doc``.
+
+        Chunks come back untouched when there are no spans to attach: a
+        document that is not text, or a splitter `_split_spans` could not
+        locate. Both are expected, so neither says anything about the chunks.
         """
-        if not isinstance(doc, str):
+        if not isinstance(doc, str) or not spans:
             return chunks
         if sum(len(chunk.splits) for chunk in chunks) != len(spans):
             # The chunker added or dropped splits, so which of them a chunk
