@@ -177,6 +177,19 @@ def test_a_chunk_of_frames_has_no_content_or_offsets():
     )
 
 
+def test_print_shows_the_document_text_and_survives_a_chunk_without_content(capsys):
+    """``print`` reads ``content``; a chunk of frames has none and used to raise."""
+    chunker = RegexChunker(max_chunk_tokens=12)
+    chunker.print(chunker([DOC])[0])
+    assert "Alpha two." in capsys.readouterr().out
+
+    frames = [np.zeros((2, 2)), np.ones((2, 2))]
+    frame_chunker = ConsecutiveChunker(encoder=FrameEncoder(), score_threshold=0.45)
+    frame_chunker.print(frame_chunker([frames])[0])
+
+    assert "Split 1" in capsys.readouterr().out
+
+
 def test_a_chunk_built_by_hand_has_no_content():
     """``content`` is text from a document, not the splits joined up."""
     chunk = Chunk(splits=["Alpha one.", "Alpha two."])
