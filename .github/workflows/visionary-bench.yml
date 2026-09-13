@@ -22,7 +22,7 @@ jobs:
       results: benchmarks/results.json
       # Anything else the suite writes that a reviewer should be able to open
       # from the pull request. Published as a downloadable artifact and linked
-      # from the bench comment.
+      # from a block in the pull request description, rewritten on every push.
       publish: benchmarks/report.html
       # Appended to by the suite; cached between runs so trend charts have
       # something to plot on a fresh runner.
