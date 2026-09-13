@@ -122,11 +122,12 @@ def test_every_document_is_embedded_in_its_own_cache_namespace(
     metrics = run.run_synthetic(variant, {"name": "synthetic-boundaries", "n_docs": 3})
 
     model = encoder._model
-    # one partition per document, entered in order and never returned to
+    # one partition per document, entered in order and never returned to, and
+    # qualified by the suite so two suites sharing text cannot bill each other
     assert list(dict.fromkeys(model.namespaces)) == [
-        "consecutive/stub/0",
-        "consecutive/stub/1",
-        "consecutive/stub/2",
+        "synthetic-boundaries/consecutive/stub/0",
+        "synthetic-boundaries/consecutive/stub/1",
+        "synthetic-boundaries/consecutive/stub/2",
     ]
     # the consequence: text shared between documents is embedded once per
     # document, so more texts reach the model than the run has distinct texts
@@ -164,3 +165,29 @@ def test_metrics_carry_a_distribution_not_just_a_mean(tmp_path):
     for key in m:
         if key.endswith(("_p05", "_p50", "_p95")):
             assert payload["directions"][key] in ("up", "down")
+
+
+def test_a_second_suite_does_not_reuse_the_first_suite_cache(monkeypatch, fake_encoder):
+    """``main`` loops suites x variants, and two suites can share text.
+
+    Without the suite in the partition, suite B's document *i* would inherit
+    whatever suite A's document *i* embedded, and B's per-document timing and
+    encoder counts would be charged to A.
+    """
+    encoder = fake_encoder("consecutive/stub")
+    monkeypatch.setattr(run, "make_encoder", lambda spec, namespace: encoder)
+    variant = {
+        "name": "consecutive/stub",
+        "chunker": "consecutive",
+        "params": {"score_threshold": 0.45},
+    }
+    run.run_synthetic(variant, {"name": "suite-a", "n_docs": 2, "seed": 0})
+    run.run_synthetic(variant, {"name": "suite-b", "n_docs": 2, "seed": 0})
+
+    namespaces = list(dict.fromkeys(encoder._model.namespaces))
+    assert namespaces == [
+        "suite-a/consecutive/stub/0",
+        "suite-a/consecutive/stub/1",
+        "suite-b/consecutive/stub/0",
+        "suite-b/consecutive/stub/1",
+    ]

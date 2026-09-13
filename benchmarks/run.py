@@ -151,8 +151,11 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
         max_sources=suite.get("max_sources", 6),
         seed=suite.get("seed", 0),
     )
+    suite_name = suite.get("name", "suite")
     encoder = (
-        make_encoder(variant.get("encoder", {}), namespace=variant["name"])
+        make_encoder(
+            variant.get("encoder", {}), namespace=f"{suite_name}/{variant['name']}"
+        )
         if uses_encoder(variant)
         else None
     )
@@ -170,7 +173,10 @@ def run_synthetic(variant: dict[str, Any], suite: dict[str, Any]) -> dict[str, A
             # synthetic suite reuses source articles, so without this the
             # first few documents carry almost all the embedding cost and
             # doc_s_p50/doc_s_p95 rank documents by position, not difficulty.
-            encoder.use_namespace(f"{variant['name']}/{index}")
+            # The suite name is part of the partition too: two suites can
+            # share text, and whichever ran first would otherwise be billed
+            # for both.
+            encoder.use_namespace(f"{suite_name}/{variant['name']}/{index}")
         d0 = time.perf_counter()
         result = chunker([doc.text])
         doc_s.append(time.perf_counter() - d0)
