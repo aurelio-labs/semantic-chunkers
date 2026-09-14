@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 from pydantic import SkipValidation
@@ -56,6 +56,10 @@ class StatisticalChunker(BaseChunker):
         """Merge splits into chunks using semantic similarity, with optional enforcement
         of maximum token limits per chunk.
 
+        Encodes every split once, up front. `__call__` encodes across the whole
+        call instead, so it goes to `_chunk_encoded` directly; this is the
+        entry point for chunking one list of splits on its own.
+
         :param splits: Splits to be merged into chunks.
         :param batch_size: Number of splits to process in one batch.
         :param enforce_max_tokens: If True, further split chunks that exceed the maximum
@@ -66,25 +70,9 @@ class StatisticalChunker(BaseChunker):
         if enforce_max_tokens:
             splits = self._split_oversized(splits)
 
-        chunks: List[Chunk] = []
-        last_chunk: Optional[Chunk] = None
-        for i in tqdm(range(0, len(splits), batch_size)):
-            batch_splits = splits[i : i + batch_size]
-            if last_chunk is not None:
-                batch_splits = last_chunk.splits + batch_splits
-
-            doc_chunks = self._chunk_batch(
-                batch_splits, self._encode_documents(batch_splits)
-            )
-            # The last chunk of a batch may still grow, so it leads the next
-            # one rather than being finished here.
-            chunks.extend(doc_chunks[:-1])
-            last_chunk = doc_chunks[-1]
-
-        if last_chunk:
-            chunks.append(last_chunk)
-
-        return chunks
+        return self._chunk_encoded(
+            splits, self._encode_splits(splits, batch_size), batch_size
+        )
 
     @time_it
     async def _async_chunk(
@@ -93,11 +81,7 @@ class StatisticalChunker(BaseChunker):
         """Merge splits into chunks using semantic similarity, with optional enforcement
         of maximum token limits per chunk.
 
-        Produces the chunks `_chunk` produces, batching the same way: the chunk
-        a batch leaves open leads the next batch, so a chunk can span a batch
-        boundary. Only the encoding is concurrent, and every split is encoded
-        once — a split carried into the next batch keeps the embedding it
-        already has instead of being paid for twice.
+        Produces the chunks `_chunk` produces; only the encoding is concurrent.
 
         :param splits: Splits to be merged into chunks.
         :param batch_size: Number of splits to process in one batch.
@@ -109,17 +93,19 @@ class StatisticalChunker(BaseChunker):
         if enforce_max_tokens:
             splits = self._split_oversized(splits)
 
-        if not splits:
-            return []
-
-        encoded_batches = await asyncio.gather(
-            *[
-                self._async_encode_documents(splits[i : i + batch_size])
-                for i in range(0, len(splits), batch_size)
-            ]
+        return self._chunk_encoded(
+            splits, await self._async_encode_splits(splits, batch_size), batch_size
         )
-        encoded_splits = np.concatenate(encoded_batches)
 
+    def _chunk_encoded(
+        self, splits: List[Any], encoded_splits: np.ndarray, batch_size: int = 64
+    ) -> List[Chunk]:
+        """Cut already-encoded splits into chunks, one batch of them at a time.
+
+        The chunk a batch leaves open leads the next batch, so a chunk can span
+        a batch boundary. The embeddings are sliced alongside the splits rather
+        than asked for again, so a carried split keeps the embedding it has.
+        """
         chunks: List[Chunk] = []
         last_chunk: Optional[Chunk] = None
         for i in tqdm(range(0, len(splits), batch_size)):
@@ -127,10 +113,10 @@ class StatisticalChunker(BaseChunker):
             # before `i`, so one slice picks out both the batch's splits and
             # their embeddings.
             carried = len(last_chunk.splits) if last_chunk is not None else 0
-            batch_splits = splits[i - carried : i + batch_size]
 
             doc_chunks = self._chunk_batch(
-                batch_splits, encoded_splits[i - carried : i + batch_size]
+                splits[i - carried : i + batch_size],
+                encoded_splits[i - carried : i + batch_size],
             )
             chunks.extend(doc_chunks[:-1])
             last_chunk = doc_chunks[-1]
@@ -206,21 +192,24 @@ class StatisticalChunker(BaseChunker):
         if not docs:
             raise ValueError("At least one document is required for splitting.")
 
+        # Every document is split first, so one batch of splits can span
+        # documents: a hundred short documents cost the encoder two round
+        # trips rather than a hundred. Chunking stays per document, so where
+        # a document is cut does not depend on what it was called with.
+        doc_splits, doc_spans = self._split_docs(docs)
+        encoded_splits = self._encode_splits(
+            [split for splits in doc_splits for split in splits], batch_size
+        )
+
         all_chunks = []
-        for doc in docs:
-            token_count = tiktoken_length(doc)
-            if token_count > self.max_split_tokens:
-                logger.info(
-                    f"Single document exceeds the maximum token limit "
-                    f"of {self.max_split_tokens}. "
-                    "Splitting to sentences before semantically merging."
-                )
-            if isinstance(doc, str):
-                splits, spans = self._split_spans(doc)
-                doc_chunks = self._chunk(splits, batch_size=batch_size)
-                all_chunks.append(self._attach_spans(doc, spans, doc_chunks))
-            else:
-                raise ValueError("The document must be a string.")
+        start = 0
+        for doc, splits, spans in zip(docs, doc_splits, doc_spans):
+            end = start + len(splits)
+            doc_chunks = self._chunk_encoded(
+                splits, encoded_splits[start:end], batch_size
+            )
+            all_chunks.append(self._attach_spans(doc, spans, doc_chunks))
+            start = end
         return all_chunks
 
     @time_it
@@ -235,22 +224,44 @@ class StatisticalChunker(BaseChunker):
         if not docs:
             raise ValueError("At least one document is required for splitting.")
 
+        doc_splits, doc_spans = self._split_docs(docs)
+        encoded_splits = await self._async_encode_splits(
+            [split for splits in doc_splits for split in splits], batch_size
+        )
+
         all_chunks = []
+        start = 0
+        for doc, splits, spans in zip(docs, doc_splits, doc_spans):
+            end = start + len(splits)
+            doc_chunks = self._chunk_encoded(
+                splits, encoded_splits[start:end], batch_size
+            )
+            all_chunks.append(self._attach_spans(doc, spans, doc_chunks))
+            start = end
+        return all_chunks
+
+    def _split_docs(
+        self, docs: List[str]
+    ) -> Tuple[List[List[Any]], List[List[Tuple[int, int]]]]:
+        """Split every document, keeping each document's splits to itself.
+
+        The spans come back with them because the chunks of a document are
+        located in that document, not in the concatenation of all of them.
+        """
+        doc_splits, doc_spans = [], []
         for doc in docs:
-            token_count = tiktoken_length(doc)
-            if token_count > self.max_split_tokens:
+            if not isinstance(doc, str):
+                raise ValueError("The document must be a string.")
+            if tiktoken_length(doc) > self.max_split_tokens:
                 logger.info(
                     f"Single document exceeds the maximum token limit "
                     f"of {self.max_split_tokens}. "
                     "Splitting to sentences before semantically merging."
                 )
-            if isinstance(doc, str):
-                splits, spans = self._split_spans(doc)
-                doc_chunks = await self._async_chunk(splits, batch_size=batch_size)
-                all_chunks.append(self._attach_spans(doc, spans, doc_chunks))
-            else:
-                raise ValueError("The document must be a string.")
-        return all_chunks
+            splits, spans = self._split_spans(doc)
+            doc_splits.append(splits)
+            doc_spans.append(spans)
+        return doc_splits, doc_spans
 
     def _static_threshold(self) -> float:
         """The threshold used when ``dynamic_threshold`` is off.
@@ -260,6 +271,33 @@ class StatisticalChunker(BaseChunker):
         not falls back to the default.
         """
         return getattr(self.encoder, "score_threshold", None) or self.DEFAULT_THRESHOLD
+
+    def _encode_splits(self, splits: List[Any], batch_size: int) -> np.ndarray:
+        """Encode every split once, ``batch_size`` of them per request."""
+        if not splits:
+            return np.empty((0, 0))
+
+        return np.concatenate(
+            [
+                self._encode_documents(splits[i : i + batch_size])
+                for i in range(0, len(splits), batch_size)
+            ]
+        )
+
+    async def _async_encode_splits(
+        self, splits: List[Any], batch_size: int
+    ) -> np.ndarray:
+        """Encode every split once, ``batch_size`` per request, concurrently."""
+        if not splits:
+            return np.empty((0, 0))
+
+        encoded_batches = await asyncio.gather(
+            *[
+                self._async_encode_documents(splits[i : i + batch_size])
+                for i in range(0, len(splits), batch_size)
+            ]
+        )
+        return np.concatenate(encoded_batches)
 
     @time_it
     def _encode_documents(self, docs: List[str]) -> np.ndarray:

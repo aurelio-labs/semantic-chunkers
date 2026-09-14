@@ -261,6 +261,26 @@ async def test_async_statistical_chunker_raises_when_the_encoder_times_out():
         await chunker.acall(docs=["doc1 about something. Doc2 about something."])
 
 
+@pytest.mark.asyncio
+async def test_statistical_chunker_rejects_a_document_that_is_not_a_string():
+    """The chunker counted the tokens of a document before checking its type.
+
+    Anything but a string died inside tiktoken as a TypeError about PyString,
+    with the ValueError the chunker meant to raise never reached.
+    """
+    mock_encoder = Mock()
+    mock_encoder.side_effect = lambda docs: np.array([[1, 0] for _ in docs])
+
+    chunker = StatisticalChunker(encoder=OpenAIEncoder(name=ENCODER_NAME, api_key="a"))
+    chunker.encoder = mock_encoder
+
+    with pytest.raises(ValueError, match="must be a string"):
+        chunker(docs=[["a frame", "another frame"]])
+
+    with pytest.raises(ValueError, match="must be a string"):
+        await chunker.acall(docs=[["a frame", "another frame"]])
+
+
 @pytest.fixture
 def base_splitter_instance():
     # Now MockEncoder includes default values for required fields
