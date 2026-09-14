@@ -281,6 +281,30 @@ async def test_statistical_chunker_rejects_a_document_that_is_not_a_string():
         await chunker.acall(docs=[["a frame", "another frame"]])
 
 
+@pytest.mark.asyncio
+async def test_statistical_chunker_returns_no_chunks_for_a_document_with_no_splits():
+    """A document the splitter finds nothing in must not reach the encoder.
+
+    Encoding across the whole call concatenates one array per batch, and
+    `np.concatenate` raises on an empty list, so both encode paths return early
+    when there is nothing to encode. A blank document is how a caller gets there.
+    """
+    mock_encoder = Mock()
+    mock_encoder.side_effect = lambda docs: np.array([[1, 0] for _ in docs])
+    mock_encoder.acall = AsyncMock(
+        side_effect=lambda docs: np.array([[1, 0] for _ in docs])
+    )
+
+    chunker = StatisticalChunker(encoder=OpenAIEncoder(name=ENCODER_NAME, api_key="a"))
+    chunker.encoder = mock_encoder
+
+    assert chunker(docs=["   "]) == [[]]
+    assert await chunker.acall(docs=["   "]) == [[]]
+
+    mock_encoder.assert_not_called()
+    mock_encoder.acall.assert_not_awaited()
+
+
 @pytest.fixture
 def base_splitter_instance():
     # Now MockEncoder includes default values for required fields
