@@ -6,6 +6,7 @@ the two paths diverged: the sync path carried an unfinished chunk into the next
 batch and the async path started afresh, so every 64th split ended a chunk.
 """
 
+from collections import Counter
 from math import ceil
 
 import pytest
@@ -82,6 +83,34 @@ async def test_async_statistical_chunking_encodes_each_split_once(encoder, docum
 
     assert encoder.requested_texts == len(splits)
     assert encoder.requests == ceil(len(splits) / BATCH_SIZE)
+
+
+@pytest.mark.parametrize("path", ["sync", "async"])
+@pytest.mark.asyncio
+async def test_cumulative_chunking_encodes_each_split_once(encoder, document, path):
+    """Parity of chunks is not parity of cost: see priority 2 in VISION.md.
+
+    The cumulative chunker has to re-encode its running chunk as that chunk
+    grows, but the split it compares that chunk against never changes and a
+    chunk one split long *is* a split. Both come out of one batched pass over
+    the splits, so no split is ever fetched in a request of its own.
+    """
+    splits = RegexSplitter()(document)
+
+    if path == "sync":
+        CumulativeChunker(encoder=encoder)([document])
+    else:
+        await CumulativeChunker(encoder=encoder).acall([document])
+
+    # Every split exactly once, counting duplicates so a sentence the corpus
+    # repeats is expected as often as it appears.
+    requested = Counter(text for batch in encoder.requested_batches for text in batch)
+    assert {split: requested[split] for split in set(splits)} == Counter(splits)
+
+    # And in batches, not one request per split.
+    prefetch = encoder.requested_batches[: ceil(len(splits) / BATCH_SIZE)]
+    assert [text for batch in prefetch for text in batch] == splits
+    assert [len(batch) for batch in prefetch[:-1]] == [BATCH_SIZE] * (len(prefetch) - 1)
 
 
 @pytest.mark.asyncio

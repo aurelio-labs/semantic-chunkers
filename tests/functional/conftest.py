@@ -39,10 +39,19 @@ class CachedOnlyEncoder(CachedSentenceTransformerEncoder):
     error that says how to refill the cache instead. Set
     `SEMANTIC_CHUNKERS_REFRESH_CACHE=1` to allow the load and write the
     missing embeddings back.
+
+    It also keeps the texts of every request in `requested_batches`, so a test
+    can say which text was encoded and how it was batched rather than only how
+    many texts there were.
     """
 
     def __init__(self, cache_dir: Path = CACHE_DIR, **kwargs):
         super().__init__(cache_dir=cache_dir, **kwargs)
+        self.requested_batches: list[list[str]] = []
+
+    def __call__(self, docs: list[str]) -> list[list[float]]:
+        self.requested_batches.append(list(docs))
+        return super().__call__(docs)
 
     def _load(self):
         if os.environ.get("SEMANTIC_CHUNKERS_REFRESH_CACHE") != "1":
