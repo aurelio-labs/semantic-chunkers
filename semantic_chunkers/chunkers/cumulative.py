@@ -30,6 +30,16 @@ class CumulativeChunker(BaseChunker):
         super().__init__(name=name, encoder=encoder, splitter=splitter)
         self.score_threshold = score_threshold
 
+    @staticmethod
+    def _batch_starts(splits: List[Any], batch_size: int) -> range:
+        """Where each batch of splits to encode begins.
+
+        Empty for a document of one split: that split has nothing to compare
+        against, so `_cut` reads no embedding and encoding it would be paying
+        for one nothing uses.
+        """
+        return range(0, len(splits), batch_size) if len(splits) > 1 else range(0)
+
     def _cut(
         self, splits: List[Any], split_embeds: np.ndarray
     ) -> Generator[str, Any, List[Chunk]]:
@@ -95,7 +105,7 @@ class CumulativeChunker(BaseChunker):
         split_embeds = np.array(
             [
                 embed
-                for i in range(0, len(splits), batch_size)
+                for i in self._batch_starts(splits, batch_size)
                 for embed in self.encoder(splits[i : i + batch_size])
             ]
         )
@@ -126,7 +136,7 @@ class CumulativeChunker(BaseChunker):
         batches = await asyncio.gather(
             *[
                 acall_encoder(self.encoder, splits[i : i + batch_size])
-                for i in range(0, len(splits), batch_size)
+                for i in self._batch_starts(splits, batch_size)
             ]
         )
         split_embeds = np.array([embed for batch in batches for embed in batch])

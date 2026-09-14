@@ -180,6 +180,26 @@ def test_cumulative_similarity_splitter_single_doc():
     assert len(chunks) == 1
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["sync", "async"])
+async def test_cumulative_chunker_does_not_encode_a_lone_split(path):
+    """A split with nothing to compare against costs nothing to chunk."""
+    mock_encoder = create_autospec(DenseEncoder)
+    mock_encoder.return_value = np.array([[0.5, 0]])
+    mock_encoder.acall = AsyncMock(return_value=np.array([[0.5, 0]]))
+    chunker = CumulativeChunker(encoder=mock_encoder, score_threshold=0.5)
+
+    docs = ["doc1 about something"]
+    if path == "sync":
+        chunks = chunker(docs)[0]
+    else:
+        chunks = (await chunker.acall(docs))[0]
+
+    assert [chunk.splits for chunk in chunks] == [["doc1 about something"]]
+    assert mock_encoder.call_count == 0
+    assert mock_encoder.acall.await_count == 0
+
+
 def test_statistical_chunker():
     # Create a Mock object for the encoder
     mock_encoder = Mock()
