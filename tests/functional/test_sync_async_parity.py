@@ -68,20 +68,76 @@ async def test_chunkers_chunk_the_same_sync_and_async(chunker, document):
 
 
 @pytest.mark.asyncio
-async def test_async_statistical_chunking_encodes_each_split_once(encoder, document):
+async def test_statistical_chunking_encodes_each_split_once(encoder, document):
     """Parity of chunks is not parity of cost: see priority 2 in VISION.md.
 
-    The sync path re-encodes the splits it carries into the next batch, so it
-    asks for more texts than there are splits. The async path encodes the whole
-    document up front and slices, so it asks for exactly one text per split —
-    an invariant the chunk comparison above would not notice being lost.
+    Both paths encode the whole document up front and slice, so a split
+    carried into the next batch keeps the embedding it already has instead of
+    being paid for twice. Each asks for exactly one text per split — an
+    invariant the chunk comparison above would not notice being lost.
     """
     splits = RegexSplitter()(document)
+    chunker = StatisticalChunker(encoder=encoder)
 
-    await StatisticalChunker(encoder=encoder).acall([document])
+    chunker([document])
 
     assert encoder.requested_texts == len(splits)
     assert encoder.requests == ceil(len(splits) / BATCH_SIZE)
+
+    encoder.reset_counters()
+    await chunker.acall([document])
+
+    assert encoder.requested_texts == len(splits)
+    assert encoder.requests == ceil(len(splits) / BATCH_SIZE)
+
+
+@pytest.mark.asyncio
+async def test_statistical_chunking_batches_across_documents(encoder, documents):
+    """Short documents share an encoder batch: see priority 2 in VISION.md.
+
+    One request per document is one round trip per document against a remote
+    encoder, which is what a hundred short documents used to cost. Batches are
+    filled from the splits of every document instead, and each document is
+    still cut the way it is cut on its own.
+    """
+    splits = [split for doc in documents for split in RegexSplitter()(doc)]
+    chunker = StatisticalChunker(encoder=encoder)
+
+    alone = [chunker([doc])[0] for doc in documents]
+
+    encoder.reset_counters()
+    together = chunker(documents)
+
+    assert [cuts(chunks) for chunks in together] == [cuts(chunks) for chunks in alone]
+    assert encoder.requested_texts == len(splits)
+    assert encoder.requests == ceil(len(splits) / BATCH_SIZE)
+
+    encoder.reset_counters()
+    awaited = await chunker.acall(documents)
+
+    assert [cuts(chunks) for chunks in awaited] == [cuts(chunks) for chunks in alone]
+    assert encoder.requested_texts == len(splits)
+    assert encoder.requests == ceil(len(splits) / BATCH_SIZE)
+
+
+@pytest.mark.asyncio
+async def test_statistical_chunking_a_bare_list_of_splits_cuts_the_same(
+    encoder, document
+):
+    """`_chunk` chunks splits a caller already has, and it must not drift.
+
+    It encodes what it was given, where the document path encodes across every
+    document in the call and hands each one its own slice. The two arrive at
+    the embeddings differently, so this is the assertion that keeps the chunks
+    they produce the same.
+    """
+    chunker = StatisticalChunker(encoder=encoder)
+    splits = RegexSplitter()(document)
+
+    expected = [chunk.splits for chunk in chunker([document])[0]]
+
+    assert [chunk.splits for chunk in chunker._chunk(splits)] == expected
+    assert [chunk.splits for chunk in await chunker._async_chunk(splits)] == expected
 
 
 @pytest.mark.asyncio

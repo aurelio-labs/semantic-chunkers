@@ -64,3 +64,14 @@ def document() -> str:
     which is several times the 64 splits a chunker encodes in one batch.
     """
     return "\n\n".join(entry["text"] for entry in load_corpus())
+
+
+@pytest.fixture(scope="session")
+def documents() -> list[str]:
+    """The first twenty article introductions, one document each.
+
+    Four or five sentences apiece, so every document is far smaller than one
+    encoder batch while the twenty of them together are larger than one. That
+    is the shape a call over many short documents has.
+    """
+    return [entry["text"] for entry in load_corpus()[:20]]
