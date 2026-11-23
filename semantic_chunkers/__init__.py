@@ -9,7 +9,7 @@ from semantic_chunkers.chunkers import (
     StatisticalChunker,
 )
 from semantic_chunkers.encoders import CallableEncoder, DenseEncoder, EncoderError
-from semantic_chunkers.splitters import BaseSplitter, RegexSplitter
+from semantic_chunkers.splitters import BaseSplitter, RegexSplitter, SentencexSplitter
 
 if TYPE_CHECKING:  # pragma: no cover - for type checkers, not for runtime
     from semantic_chunkers.encoders import LocalEncoder, OpenAIEncoder
@@ -20,6 +20,7 @@ __all__ = [
     "CumulativeChunker",
     "StatisticalChunker",
     "RegexSplitter",
+    "SentencexSplitter",
     "BaseSplitter",
     "RegexChunker",
     "CallableEncoder",
