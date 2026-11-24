@@ -17,6 +17,11 @@ def _strip_span(doc: str, start: int, end: int) -> Tuple[int, int]:
 class RegexSplitter(BaseSplitter):
     """
     Enhanced regex pattern to split a given text into sentences more accurately.
+
+    Written for English. After a full stop it only starts a new sentence before
+    an ASCII capital, and it does not know ``。``, so Russian, Japanese or Chinese
+    text is left largely unsplit. For those and other languages, pass
+    ``SentencexSplitter`` as the chunker's ``splitter``.
     """
 
     regex_pattern: str = r"""

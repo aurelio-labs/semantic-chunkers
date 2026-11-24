@@ -13,6 +13,8 @@ The library splits a document into sentences, embeds them, and looks at how simi
 
 The semantic chunkers take any [encoder](encoders) — the OpenAI one that ships with the library, a local sentence-transformers model, an embedding function of your own, or an encoder from another library such as [Semantic Router](../../semantic-router).
 
+Sentences are found with a regex written for English. It leaves Russian, Japanese or Chinese text largely unsplit, and it cuts English after colons and titles such as `Dr.`. The optional [sentencex splitter](quickstart#sentence-splits-in-other-languages-with-sentencex) handles both.
+
 ## Start here
 
 The [quickstart](quickstart) chunks a document in a few lines and compares the strategies.

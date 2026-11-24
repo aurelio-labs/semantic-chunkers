@@ -21,6 +21,7 @@ dependencies = [
 local = ["sentence-transformers>=3.0.0"]
 stats = ["matplotlib>=3.8.3"]
 bench = ["sentence-transformers>=3.0.0"]
+sentencex = ["sentencex>=1.0.30"]
 dev = [
     "ipykernel>=6.25.0,<7",
     "ruff>=0.11.2,<0.12",
@@ -33,6 +34,9 @@ dev = [
     "types-pyyaml>=6.0.12.12,<7",
     "requests-mock>=1.12.1,<2",
     "types-requests>=2.31.0,<3",
+    # sentencex has no CPython 3.10 wheel for macOS (nor, lately, Windows), and
+    # building it needs a recent Rust; there its tests skip instead.
+    "sentencex>=1.0.30; python_version >= '3.11' or sys_platform == 'linux'",
 ]
 
 [build-system]
