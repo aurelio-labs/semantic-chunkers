@@ -1,5 +1,7 @@
 from typing import List, Tuple
 
+from pydantic import ConfigDict
+
 from semantic_chunkers.splitters.base import BaseSplitter
 from semantic_chunkers.splitters.regex import _strip_span
 
@@ -28,6 +30,10 @@ class SentencexSplitter(BaseSplitter):
         sentencex has no rules for follows its fallback chain to the closest
         language it has, and ends at English, without an error.
     """
+
+    # A misspelled parameter such as ``lang="ru"`` would otherwise be kept as
+    # an extra field and the text split as English without a word.
+    model_config = ConfigDict(extra="forbid")
 
     language: str = "en"
 

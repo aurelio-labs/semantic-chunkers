@@ -10,6 +10,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+from pydantic import ValidationError
 
 from semantic_chunkers import ConsecutiveChunker, SentencexSplitter
 
@@ -148,6 +149,11 @@ def test_a_single_newline_without_punctuation_does_not_end_a_sentence(sentencex)
 def test_empty_or_whitespace_input_gives_no_splits(sentencex, doc):
     assert SentencexSplitter()(doc) == []
     assert SentencexSplitter().spans(doc) == []
+
+
+def test_a_misspelled_parameter_is_an_error_not_a_silent_english_split():
+    with pytest.raises(ValidationError, match="lang"):
+        SentencexSplitter(lang="ru")
 
 
 def test_a_missing_install_names_the_extra(no_sentencex):
